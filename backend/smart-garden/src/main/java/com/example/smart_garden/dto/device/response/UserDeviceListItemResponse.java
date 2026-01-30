@@ -1,0 +1,19 @@
+package com.example.smart_garden.dto.device.response;
+
+import com.example.smart_garden.entity.enums.DeviceStatus;
+
+import java.time.LocalDateTime;
+
+/**
+ * Item danh sách device cho user (chỉ thiết bị của mình).
+ */
+public record UserDeviceListItemResponse(
+        Long id,
+        String deviceName,
+        String deviceCode,
+        String location,
+        DeviceStatus status,
+        LocalDateTime lastOnline
+) {
+}
+
