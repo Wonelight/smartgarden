@@ -4,6 +4,6 @@ public enum LogSource {
     ESP32,
     BACKEND,
     ML_SERVICE,
+    AI_SERVICE,
     FRONTEND
 }
-

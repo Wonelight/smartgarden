@@ -12,13 +12,14 @@ public record AdminDeviceDetailResponse(
         String deviceCode,
         String deviceName,
         String location,
+        Double latitude,
+        Double longitude,
+        Double altitude,
         DeviceStatus status,
         String firmwareVersion,
         LocalDateTime lastOnline,
         Long userId,
         String username,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
-) {
+        LocalDateTime updatedAt) {
 }
-

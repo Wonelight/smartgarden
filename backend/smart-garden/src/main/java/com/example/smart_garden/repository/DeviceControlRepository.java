@@ -34,11 +34,6 @@ public interface DeviceControlRepository extends JpaRepository<DeviceControl, Lo
     List<DeviceControl> findByDeviceIdAndStatus(Long deviceId, ControlStatus status);
 
     /**
-     * Tìm lệnh điều khiển đang pending
-     */
-    List<DeviceControl> findByDeviceIdAndStatus(Long deviceId, ControlStatus status);
-
-    /**
      * Tìm lệnh điều khiển theo type và action
      */
     List<DeviceControl> findByDeviceIdAndControlTypeAndAction(

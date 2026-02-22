@@ -4,10 +4,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @MappedSuperclass
+@Getter
 public abstract class BaseEntity {
 
     @Column(name = "created_at", updatable = false)
@@ -33,17 +35,6 @@ public abstract class BaseEntity {
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public LocalDateTime getDeletedAt() {
-        return deletedAt;
-    }
+    
 }
 

@@ -18,42 +18,48 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(
-        name = "fuzzy_logic_result",
-        indexes = {
+@Table(name = "fuzzy_logic_result", indexes = {
                 @Index(name = "idx_fuzzy_result_device_timestamp", columnList = "device_id, timestamp")
-        }
-)
+})
 @Where(clause = "deleted_at IS NULL")
 public class FuzzyLogicResult extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "device_id", nullable = false)
-    private Device device;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "device_id", nullable = false)
+        private Device device;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sensor_data_id")
-    private SensorData sensorData;
+        @OneToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "sensor_data_id")
+        private SensorData sensorData;
 
-    @Column(name = "fuzzy_output")
-    private Float fuzzyOutput;
+        @Column(name = "fuzzy_output")
+        private Float fuzzyOutput;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "irrigation_decision", length = 20)
-    private IrrigationDecision irrigationDecision;
+        @Enumerated(EnumType.STRING)
+        @Column(name = "irrigation_decision", length = 20)
+        private IrrigationDecision irrigationDecision;
 
-    @Column(name = "irrigation_duration")
-    private Integer irrigationDuration;
+        @Column(name = "irrigation_duration")
+        private Integer irrigationDuration;
 
-    @Column(name = "confidence_score")
-    private Float confidenceScore;
+        @Column(name = "confidence_score")
+        private Float confidenceScore;
 
-    @CreationTimestamp
-    @Column(name = "timestamp", updatable = false)
-    private LocalDateTime timestamp;
+        @CreationTimestamp
+        @Column(name = "timestamp", updatable = false)
+        private LocalDateTime timestamp;
+
+        @Column(name = "anfis_refined_duration")
+        private Integer anfisRefinedDuration;
+
+        @Column(name = "anfis_confidence")
+        private Float anfisConfidence;
+
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "ml_prediction_id")
+        private MlPrediction mlPrediction;
 }
-

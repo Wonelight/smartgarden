@@ -18,7 +18,6 @@ public record IrrigationConfigDetailResponse(
         Integer irrigationDurationMax,
         Boolean fuzzyEnabled,
         Boolean autoMode,
-        LocalDateTime updatedAt
-) {
+        Boolean aiEnabled,
+        LocalDateTime updatedAt) {
 }
-

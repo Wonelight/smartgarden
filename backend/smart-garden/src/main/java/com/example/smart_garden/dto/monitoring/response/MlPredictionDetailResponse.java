@@ -9,15 +9,16 @@ import java.util.Map;
  * Chi tiết dự báo ML (bao gồm features đã dùng).
  */
 public record MlPredictionDetailResponse(
-        Long id,
-        Long deviceId,
-        PredictionType predictionType,
-        Float predictedWaterAmount,
-        Integer predictedDuration,
-        Integer predictionHorizon,
-        Float modelAccuracy,
-        Map<String, Object> featuresUsed,
-        LocalDateTime createdAt
-) {
+                Long id,
+                Long deviceId,
+                PredictionType predictionType,
+                Float predictedWaterAmount,
+                Integer predictedDuration,
+                Integer predictionHorizon,
+                Float modelAccuracy,
+                Map<String, Object> featuresUsed,
+                Float anfisOutput,
+                Map<String, Object> anfisParams,
+                Float anfisAccuracy,
+                LocalDateTime createdAt) {
 }
-

@@ -17,43 +17,43 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(
-        name = "sensor_data",
-        indexes = {
+@Table(name = "sensor_data", indexes = {
                 @Index(name = "idx_sensor_data_device_timestamp", columnList = "device_id, timestamp")
-        }
-)
+})
 @Where(clause = "deleted_at IS NULL")
 public class SensorData extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "device_id", nullable = false)
-    private Device device;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "device_id", nullable = false)
+        private Device device;
 
-    @Column(name = "soil_moisture")
-    private Float soilMoisture;
+        @Column(name = "soil_moisture")
+        private Float soilMoisture;
 
-    @Column(name = "temperature")
-    private Float temperature;
+        @Column(name = "soil_moisture_2")
+        private Float soilMoisture2;
 
-    @Column(name = "humidity")
-    private Float humidity;
+        @Column(name = "temperature")
+        private Float temperature;
 
-    @Column(name = "light_intensity")
-    private Float lightIntensity;
+        @Column(name = "humidity")
+        private Float humidity;
 
-    @Column(name = "rain_detected")
-    private Boolean rainDetected = false;
+        @Column(name = "light_intensity")
+        private Float lightIntensity;
 
-    @Column(name = "ambient_light")
-    private Float ambientLight;
+        @Builder.Default
+        @Column(name = "rain_detected")
+        private Boolean rainDetected = false;
 
-    @CreationTimestamp
-    @Column(name = "timestamp", updatable = false)
-    private LocalDateTime timestamp;
+        @Column(name = "ambient_light")
+        private Float ambientLight;
+
+        @CreationTimestamp
+        @Column(name = "timestamp", updatable = false)
+        private LocalDateTime timestamp;
 }
-

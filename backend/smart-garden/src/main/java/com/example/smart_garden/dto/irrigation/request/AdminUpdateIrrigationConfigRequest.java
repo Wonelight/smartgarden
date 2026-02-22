@@ -16,7 +16,6 @@ public record AdminUpdateIrrigationConfigRequest(
         Integer irrigationDurationMin,
         Integer irrigationDurationMax,
         Boolean fuzzyEnabled,
-        Boolean autoMode
-) {
+        Boolean autoMode,
+        Boolean aiEnabled) {
 }
-

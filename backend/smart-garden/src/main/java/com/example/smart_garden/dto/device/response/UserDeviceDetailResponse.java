@@ -12,9 +12,10 @@ public record UserDeviceDetailResponse(
         String deviceName,
         String deviceCode,
         String location,
+        Double latitude,
+        Double longitude,
+        Double altitude,
         DeviceStatus status,
         String firmwareVersion,
-        LocalDateTime lastOnline
-) {
+        LocalDateTime lastOnline) {
 }
-

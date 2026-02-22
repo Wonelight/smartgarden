@@ -1,7 +1,7 @@
 package com.example.smart_garden.repository;
 
 import com.example.smart_garden.entity.User;
-import com.example.smart_garden.entity.enums.UserRole;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -34,9 +34,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     /**
-     * Tìm user theo role
+     * Tìm user theo role name
      */
-    List<User> findByRole(UserRole role);
+    List<User> findByRoles_Name(String roleName);
 
     /**
      * Tìm user đang active
@@ -44,9 +44,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByIsActiveTrue();
 
     /**
-     * Tìm user theo role và active status
+     * Tìm user theo role name và active status
      */
-    List<User> findByRoleAndIsActiveTrue(UserRole role);
+    List<User> findByRoles_NameAndIsActiveTrue(String roleName);
 
     /**
      * Tìm user theo username hoặc email

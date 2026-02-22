@@ -10,8 +10,9 @@ public record AdminUpdateDeviceRequest(
         @Size(max = 100) String deviceName,
         Long userId,
         @Size(max = 255) String location,
+        Double latitude,
+        Double longitude,
+        Double altitude,
         DeviceStatus status,
-        String firmwareVersion
-) {
+        String firmwareVersion) {
 }
-

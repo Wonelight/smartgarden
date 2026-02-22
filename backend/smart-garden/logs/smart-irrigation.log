@@ -1,0 +1,13 @@
+2026-02-22T13:03:29.618+07:00 ERROR 6244 --- [smart-garden] [MQTT Rec: smart-garden-backend] .m.i.MqttPahoMessageDrivenChannelAdapter : Lost connection: Connection lost
+2026-02-22T13:03:30.549+07:00  WARN 6244 --- [smart-garden] [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=13h25m22s151ms254µs200ns).
+2026-02-22T13:24:43.102+07:00  INFO 6244 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-22T13:24:43.102+07:00  INFO 6244 --- [smart-garden] [scheduling-1] c.e.s.service.impl.BatchJobServiceImpl   : ========== DAILY WATER BALANCE JOB STARTED ==========
+2026-02-22T13:24:43.131+07:00  INFO 6244 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : No active devices with locations found. Skipping weather fetch.
+2026-02-22T13:24:43.147+07:00  INFO 6244 --- [smart-garden] [scheduling-1] c.e.s.service.impl.BatchJobServiceImpl   : Found 0 active crop seasons to process
+2026-02-22T13:24:43.147+07:00  INFO 6244 --- [smart-garden] [scheduling-1] c.e.s.service.impl.BatchJobServiceImpl   : ========== DAILY WATER BALANCE JOB COMPLETED: 0 success, 0 failed ==========
+2026-02-22T14:38:30.515+07:00 ERROR 6244 --- [smart-garden] [MQTT Rec: smart-garden-backend] .m.i.MqttPahoMessageDrivenChannelAdapter : Lost connection: Connection lost
+2026-02-22T14:38:49.606+07:00  WARN 6244 --- [smart-garden] [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=39m48s282ms846µs600ns).
+2026-02-22T14:39:18.191+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-22T14:39:18.199+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : No active devices with locations found. Skipping weather fetch.
+2026-02-22T15:00:00.020+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-22T15:00:00.033+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : No active devices with locations found. Skipping weather fetch.

@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local config (chứa mật khẩu, không commit) ###
+**/application-local.properties

@@ -40,11 +40,6 @@ public interface DeviceRepository extends JpaRepository<Device, Long> {
     List<Device> findByUserIdAndStatus(Long userId, DeviceStatus status);
 
     /**
-     * Tìm device đang online
-     */
-    List<Device> findByStatus(DeviceStatus status);
-
-    /**
      * Tìm device offline quá lâu (trước thời điểm chỉ định)
      */
     @Query("SELECT d FROM Device d WHERE d.status = :status AND d.lastOnline < :beforeTime")

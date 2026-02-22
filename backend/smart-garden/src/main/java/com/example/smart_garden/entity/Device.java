@@ -19,66 +19,76 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(
-        name = "devices",
-        uniqueConstraints = {
+@Table(name = "devices", uniqueConstraints = {
                 @UniqueConstraint(name = "uk_devices_device_code", columnNames = "device_code")
-        }
-)
+})
 @Where(clause = "deleted_at IS NULL")
 public class Device extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
 
-    @Column(name = "device_code", length = 50, nullable = false)
-    private String deviceCode;
+        @Column(name = "device_code", length = 50, nullable = false)
+        private String deviceCode;
 
-    @Column(name = "device_name", length = 100, nullable = false)
-    private String deviceName;
+        @Column(name = "device_name", length = 100, nullable = false)
+        private String deviceName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "user_id")
+        private User user;
 
-    @Column(length = 255)
-    private String location;
+        @Column(length = 255)
+        private String location;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private DeviceStatus status = DeviceStatus.OFFLINE;
+        @Enumerated(EnumType.STRING)
+        @Column(nullable = false, length = 20)
+        private DeviceStatus status = DeviceStatus.OFFLINE;
 
-    @Column(name = "firmware_version", length = 20)
-    private String firmwareVersion;
+        @Column(name = "firmware_version", length = 20)
+        private String firmwareVersion;
 
-    @Column(name = "last_online")
-    private LocalDateTime lastOnline;
+        @Column(name = "last_online")
+        private LocalDateTime lastOnline;
 
-    // Relationships
+        // ===== Agro-Physics: Location for ET₀ =====
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SensorData> sensorDataList = new ArrayList<>();
+        @Column(name = "latitude")
+        private Double latitude;
 
-    @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private IrrigationConfig irrigationConfig;
+        @Column(name = "longitude")
+        private Double longitude;
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<FuzzyLogicResult> fuzzyLogicResults = new ArrayList<>();
+        @Column(name = "altitude")
+        private Double altitude;
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MlPrediction> mlPredictions = new ArrayList<>();
+        // Relationships
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<IrrigationHistory> irrigationHistories = new ArrayList<>();
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<SensorData> sensorDataList = new ArrayList<>();
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<DeviceControl> deviceControls = new ArrayList<>();
+        @OneToOne(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+        private IrrigationConfig irrigationConfig;
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<SystemLog> systemLogs = new ArrayList<>();
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<FuzzyLogicResult> fuzzyLogicResults = new ArrayList<>();
 
-    @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Schedule> schedules = new ArrayList<>();
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<MlPrediction> mlPredictions = new ArrayList<>();
+
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<IrrigationHistory> irrigationHistories = new ArrayList<>();
+
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<DeviceControl> deviceControls = new ArrayList<>();
+
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<SystemLog> systemLogs = new ArrayList<>();
+
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<Schedule> schedules = new ArrayList<>();
+
+        @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<CropSeason> cropSeasons = new ArrayList<>();
 }
-
