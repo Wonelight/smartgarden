@@ -1,0 +1,108 @@
+Model: xgb_v20260220_1220.joblib
+Estimator: XGBoost (MSE loss + EarlyStopping)
+Objective: reg:squarederror
+Target: residual_target
+n_train=28032, n_test=7008, n_features=34
+
+──────────────────────────────────────────
+[TARGET DISTRIBUTION]
+  Train  → mean=0.6294, std=0.6073
+  Test   → mean=0.8251, std=0.7703
+
+──────────────────────────────────────────
+[TRAIN METRICS] (biased — tham khảo)
+  R²   = 0.5323
+  MAE  = 0.3037
+  RMSE = 0.4153
+  Residual mean=-0.0001, std=0.4153
+
+──────────────────────────────────────────
+[TEST METRICS] (unbiased — đánh giá chính)
+  R²   = 0.438
+  MAE  = 0.4189
+  RMSE = 0.5774
+  Residual mean=0.0983, std=0.569, skewness=0.8471
+  Prediction percentiles: {'p5': 0.1955, 'p25': 0.385, 'p50': 0.6757, 'p75': 0.9396, 'p95': 1.564}
+
+──────────────────────────────────────────
+[PRACTICAL METRICS] (test set)
+  Within ±0.5mm = 70.1%
+  Within ±1.0mm = 91.3%
+  Directional accuracy = 97.2%
+  Median absolute error = 0.3
+  MAE by range: {'low(<0.3mm)': 0.3486, 'mid(0.3-1mm)': 0.2436, 'high(>1mm)': 0.6768}
+
+──────────────────────────────────────────
+[BIAS CORRECTION]
+  bias_correction = 0.098332
+  (stored in model artifact as pipeline.bias_correction_)
+
+──────────────────────────────────────────
+[OVERFITTING CHECK]
+  R² gap (train - test)     = 0.0943
+  RMSE ratio (test / train) = 1.3904
+  Verdict: OK — gap train/test R² = 0.094, không có dấu hiệu overfit rõ
+
+──────────────────────────────────────────
+[CV STABILITY]
+  CV R² per fold   = [0.3043, 0.3988, 0.3705, 0.412, 0.4041]
+  CV R² mean ± std = 0.3779 ± 0.0394
+  CV best neg_MSE  = -0.2331
+  CV R² (approx)   = 0.3679
+
+──────────────────────────────────────────
+[EARLY STOPPING]
+  Best n_trees = 294
+
+──────────────────────────────────────────
+[USABILITY VERDICT]
+  >>> GOOD — hybrid model production-ready (Hybrid R²≥0.95, ±1mm≥85%)
+
+──────────────────────────────────────────
+[BEST HYPERPARAMETERS]
+  {'xgb__subsample': 0.8, 'xgb__reg_lambda': 10.0, 'xgb__reg_alpha': 0.01, 'xgb__n_estimators': 800, 'xgb__min_child_weight': 15, 'xgb__max_depth': 5, 'xgb__learning_rate': 0.03, 'xgb__gamma': 1.0, 'xgb__colsample_bytree': 0.5}
+
+──────────────────────────────────────────
+[FEATURE IMPORTANCE]
+  season_x_stress: 0.086643
+  month_sin: 0.078729
+  forecast_rain_d1: 0.072928
+  season_x_rain: 0.06568
+  depletion_trend_24h: 0.059243
+  forecast_rain_d0: 0.057583
+  net_water_loss_24h: 0.051184
+  stress_ratio: 0.050292
+  growth_stage: 0.043866
+  depletion_trend_12h: 0.041359
+  rain_last_12h: 0.039315
+  season_x_etc: 0.03239
+  soil_moist_shallow: 0.029952
+  etc_cumulative_24h: 0.029389
+  etc_rolling_6h: 0.026916
+  raw: 0.022138
+  rain_last_24h: 0.021892
+  kc: 0.020667
+  soil_moist_deep: 0.019044
+  soil_moist_deficit: 0.016038
+  etc: 0.015193
+  depletion_trend_6h: 0.013864
+  temp_x_humidity: 0.013639
+  rain_last_6h: 0.012587
+  solar_x_temp: 0.010806
+  light: 0.010403
+  temp: 0.009882
+  forecast_rain_d2: 0.008858
+  etc_rolling_12h: 0.007946
+  humidity: 0.007829
+  soil_moist_trend_1h: 0.006946
+  hour_cos: 0.006274
+  wind_speed: 0.005557
+  hour_sin: 0.004967
+
+──────────────────────────────────────────
+[HYBRID EVALUATION — FAO-56 + XGBoost → depletion_after_24h]
+  FAO-56 only → R²=0.8555, MAE=0.8339, RMSE=1.1288
+  Hybrid      → R²=0.9622, MAE=0.4189, RMSE=0.5775
+  Improvement → ΔR²=+0.1067, ΔMAE=0.415, ΔRMSE=0.5513
+  Hybrid  ±1mm accuracy = 91.4%
+  FAO-56  ±1mm accuracy = 66.5%

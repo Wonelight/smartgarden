@@ -1,0 +1,88 @@
+Model: xgb_v20260220_0914.joblib
+Estimator: XGBoost (Gradient Boosting)
+Target: residual_target
+n_train=28032, n_test=7008, n_features=32
+
+──────────────────────────────────────────
+[TARGET DISTRIBUTION]
+  Train  → mean=0.6294, std=0.6073
+  Test   → mean=0.8251, std=0.7703
+
+──────────────────────────────────────────
+[TRAIN METRICS] (biased — tham khảo)
+  R²   = 0.5574
+  MAE  = 0.2961
+  RMSE = 0.404
+  MAPE = 267.36%
+  Residual mean=0.0, std=0.404
+
+──────────────────────────────────────────
+[TEST METRICS ★] (unbiased — đánh giá chính)
+  R²   = 0.4355
+  MAE  = 0.4194
+  RMSE = 0.5787
+  MAPE = 284.95%
+  Residual mean=0.0872, std=0.5721, skewness=0.8429
+  Prediction percentiles: {'p5': 0.193, 'p25': 0.3988, 'p50': 0.6863, 'p75': 0.9474, 'p95': 1.6413}
+
+──────────────────────────────────────────
+[OVERFITTING CHECK]
+  R² gap (train - test)     = 0.1219
+  RMSE ratio (test / train) = 1.4324
+  Verdict: WARNING — gap train/test R² = 0.122, nên kiểm tra
+
+──────────────────────────────────────────
+[CV STABILITY]
+  CV R² per fold   = [0.2734, 0.3848, 0.3737, 0.3901, 0.4069]
+  CV R² mean ± std = 0.3658 ± 0.0474
+  CV best neg_MSE  = -0.2375
+  CV R² (approx)   = 0.3559
+
+──────────────────────────────────────────
+[USABILITY VERDICT]
+  >>> POOR — cần cải thiện (thêm data, feature engineering)
+
+──────────────────────────────────────────
+[BEST HYPERPARAMETERS]
+  {'xgb__subsample': 1.0, 'xgb__reg_lambda': 1.0, 'xgb__reg_alpha': 0.01, 'xgb__n_estimators': 200, 'xgb__min_child_weight': 5, 'xgb__max_depth': 5, 'xgb__learning_rate': 0.05, 'xgb__colsample_bytree': 0.6}
+
+──────────────────────────────────────────
+[FEATURE IMPORTANCE]
+  is_cold_season: 0.647476
+  growth_stage: 0.036087
+  season_x_rain: 0.034789
+  season_x_stress: 0.031366
+  stress_ratio: 0.031206
+  forecast_rain_d1: 0.025927
+  forecast_rain_d0: 0.025904
+  net_water_loss_24h: 0.025853
+  kc: 0.015134
+  season_x_etc: 0.015118
+  soil_moist_shallow: 0.011918
+  rain_last_6h: 0.010596
+  raw: 0.010104
+  etc_rolling_6h: 0.008269
+  etc: 0.007416
+  soil_moist_deep: 0.00714
+  depletion_trend_6h: 0.007023
+  etc_cumulative_24h: 0.006422
+  month_sin: 0.00615
+  cold_x_stress: 0.004529
+  soil_moist_deficit: 0.003833
+  temp: 0.003332
+  solar_x_temp: 0.003034
+  humidity: 0.002845
+  wind_speed: 0.002458
+  soil_moist_trend_1h: 0.002456
+  temp_x_humidity: 0.002428
+  hour_cos: 0.002389
+  forecast_rain_d2: 0.002316
+  hour_sin: 0.002215
+  light: 0.002165
+  cold_x_etc: 0.002101
+
+──────────────────────────────────────────
+[HYBRID EVALUATION — FAO-56 + XGBoost → depletion_after_24h]
+  FAO-56 only → R²=0.8555, MAE=0.8339, RMSE=1.1288
+  Hybrid      → R²=0.962, MAE=0.4194, RMSE=0.5787, MAPE=124.53%
+  Improvement → ΔR²=+0.1065, ΔMAE=0.4145, ΔRMSE=0.5501

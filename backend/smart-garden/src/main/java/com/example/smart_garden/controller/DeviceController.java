@@ -52,6 +52,18 @@ public class DeviceController {
         return ApiResponse.ok(deviceService.connectDeviceByMac(request.macAddress()));
     }
 
+    @DeleteMapping(ApiPaths.SEG_DEVICES + ApiPaths.SEG_DEVICE_ID)
+    public ApiResponse<Void> disconnectMyDevice(@PathVariable Long id) {
+        deviceService.disconnectMyDevice(id);
+        return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/devices/{id}/delete")
+    public ApiResponse<Void> deleteMyDevice(@PathVariable Long id) {
+        deviceService.deleteMyDevice(id);
+        return ApiResponse.ok(null);
+    }
+
     // ================== ADMIN ==================
 
     @PreAuthorize("hasRole(T(com.example.smart_garden.security.RbacRoles).ADMIN)")

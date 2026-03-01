@@ -1,13 +1,134 @@
-2026-02-22T13:03:29.618+07:00 ERROR 6244 --- [smart-garden] [MQTT Rec: smart-garden-backend] .m.i.MqttPahoMessageDrivenChannelAdapter : Lost connection: Connection lost
-2026-02-22T13:03:30.549+07:00  WARN 6244 --- [smart-garden] [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=13h25m22s151ms254µs200ns).
-2026-02-22T13:24:43.102+07:00  INFO 6244 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
-2026-02-22T13:24:43.102+07:00  INFO 6244 --- [smart-garden] [scheduling-1] c.e.s.service.impl.BatchJobServiceImpl   : ========== DAILY WATER BALANCE JOB STARTED ==========
-2026-02-22T13:24:43.131+07:00  INFO 6244 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : No active devices with locations found. Skipping weather fetch.
-2026-02-22T13:24:43.147+07:00  INFO 6244 --- [smart-garden] [scheduling-1] c.e.s.service.impl.BatchJobServiceImpl   : Found 0 active crop seasons to process
-2026-02-22T13:24:43.147+07:00  INFO 6244 --- [smart-garden] [scheduling-1] c.e.s.service.impl.BatchJobServiceImpl   : ========== DAILY WATER BALANCE JOB COMPLETED: 0 success, 0 failed ==========
-2026-02-22T14:38:30.515+07:00 ERROR 6244 --- [smart-garden] [MQTT Rec: smart-garden-backend] .m.i.MqttPahoMessageDrivenChannelAdapter : Lost connection: Connection lost
-2026-02-22T14:38:49.606+07:00  WARN 6244 --- [smart-garden] [HikariPool-1 housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=39m48s282ms846µs600ns).
-2026-02-22T14:39:18.191+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
-2026-02-22T14:39:18.199+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : No active devices with locations found. Skipping weather fetch.
-2026-02-22T15:00:00.020+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
-2026-02-22T15:00:00.033+07:00  INFO 6244 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : No active devices with locations found. Skipping weather fetch.
+2026-02-26T10:05:58.538+07:00  INFO 29256 --- [smart-garden] [restartedMain] c.e.smart_garden.SmartGardenApplication  : Starting SmartGardenApplication using Java 21.0.8 with PID 29256 (D:\DoAn_Garden\smart_garden\backend\smart-garden\target\classes started by chudi in D:\DoAn_Garden\smart_garden\backend\smart-garden)
+2026-02-26T10:05:58.556+07:00  INFO 29256 --- [smart-garden] [restartedMain] c.e.smart_garden.SmartGardenApplication  : The following 1 profile is active: "local"
+2026-02-26T10:05:58.692+07:00  INFO 29256 --- [smart-garden] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-02-26T10:05:58.693+07:00  INFO 29256 --- [smart-garden] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-02-26T10:05:59.579+07:00  WARN 29256 --- [smart-garden] [restartedMain] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: Failed to parse configuration class [com.example.smart_garden.SmartGardenApplication]
+2026-02-26T10:05:59.652+07:00  INFO 29256 --- [smart-garden] [restartedMain] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-02-26T10:05:59.707+07:00 ERROR 29256 --- [smart-garden] [restartedMain] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanDefinitionStoreException: Failed to parse configuration class [com.example.smart_garden.SmartGardenApplication]
+	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:179) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:416) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:289) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:788) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:606) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar:3.2.5]
+	at com.example.smart_garden.SmartGardenApplication.main(SmartGardenApplication.java:15) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.boot.devtools.restart.RestartLauncher.run(RestartLauncher.java:50) ~[spring-boot-devtools-3.2.5.jar:3.2.5]
+Caused by: java.lang.IllegalArgumentException: Could not find class [JwtProperties]
+	at org.springframework.util.ClassUtils.resolveClassName(ClassUtils.java:355) ~[spring-core-6.1.6.jar:6.1.6]
+	at org.springframework.core.annotation.TypeMappedAnnotation.adapt(TypeMappedAnnotation.java:466) ~[spring-core-6.1.6.jar:6.1.6]
+	at org.springframework.core.annotation.TypeMappedAnnotation.getValue(TypeMappedAnnotation.java:391) ~[spring-core-6.1.6.jar:6.1.6]
+	at org.springframework.core.annotation.TypeMappedAnnotation.asMap(TypeMappedAnnotation.java:278) ~[spring-core-6.1.6.jar:6.1.6]
+	at org.springframework.core.annotation.AbstractMergedAnnotation.asAnnotationAttributes(AbstractMergedAnnotation.java:191) ~[spring-core-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.AnnotationBeanNameGenerator.determineBeanNameFromAnnotation(AnnotationBeanNameGenerator.java:144) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.AnnotationBeanNameGenerator.generateBeanName(AnnotationBeanNameGenerator.java:110) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ClassPathBeanDefinitionScanner.doScan(ClassPathBeanDefinitionScanner.java:281) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ComponentScanAnnotationParser.parse(ComponentScanAnnotationParser.java:128) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:306) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:246) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:197) ~[spring-context-6.1.6.jar:6.1.6]
+	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:165) ~[spring-context-6.1.6.jar:6.1.6]
+	... 16 common frames omitted
+Caused by: java.lang.ClassNotFoundException: JwtProperties
+	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:641) ~[na:na]
+	at java.base/jdk.internal.loader.ClassLoaders$AppClassLoader.loadClass(ClassLoaders.java:188) ~[na:na]
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526) ~[na:na]
+	at java.base/java.lang.Class.forName0(Native Method) ~[na:na]
+	at java.base/java.lang.Class.forName(Class.java:534) ~[na:na]
+	at java.base/java.lang.Class.forName(Class.java:513) ~[na:na]
+	at org.springframework.boot.devtools.restart.classloader.RestartClassLoader.loadClass(RestartClassLoader.java:121) ~[spring-boot-devtools-3.2.5.jar:3.2.5]
+	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:526) ~[na:na]
+	at java.base/java.lang.Class.forName0(Native Method) ~[na:na]
+	at java.base/java.lang.Class.forName(Class.java:534) ~[na:na]
+	at java.base/java.lang.Class.forName(Class.java:513) ~[na:na]
+	at org.springframework.util.ClassUtils.forName(ClassUtils.java:304) ~[spring-core-6.1.6.jar:6.1.6]
+	at org.springframework.util.ClassUtils.resolveClassName(ClassUtils.java:345) ~[spring-core-6.1.6.jar:6.1.6]
+	... 28 common frames omitted
+
+2026-02-26T10:17:37.760+07:00  INFO 31320 --- [smart-garden] [restartedMain] c.e.smart_garden.SmartGardenApplication  : Starting SmartGardenApplication using Java 21.0.8 with PID 31320 (D:\DoAn_Garden\smart_garden\backend\smart-garden\target\classes started by chudi in D:\DoAn_Garden\smart_garden\backend\smart-garden)
+2026-02-26T10:17:37.764+07:00  INFO 31320 --- [smart-garden] [restartedMain] c.e.smart_garden.SmartGardenApplication  : The following 1 profile is active: "local"
+2026-02-26T10:17:37.875+07:00  INFO 31320 --- [smart-garden] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-02-26T10:17:37.876+07:00  INFO 31320 --- [smart-garden] [restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-02-26T10:17:40.272+07:00  INFO 31320 --- [smart-garden] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-26T10:17:40.762+07:00  INFO 31320 --- [smart-garden] [restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 472 ms. Found 20 JPA repository interfaces.
+2026-02-26T10:17:41.066+07:00  INFO 31320 --- [smart-garden] [restartedMain] faultConfiguringBeanFactoryPostProcessor : No bean named 'errorChannel' has been explicitly defined. Therefore, a default PublishSubscribeChannel will be created.
+2026-02-26T10:17:41.084+07:00  INFO 31320 --- [smart-garden] [restartedMain] faultConfiguringBeanFactoryPostProcessor : No bean named 'integrationHeaderChannelRegistry' has been explicitly defined. Therefore, a default DefaultHeaderChannelRegistry will be created.
+2026-02-26T10:17:42.335+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8081 (http)
+2026-02-26T10:17:42.360+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-02-26T10:17:42.361+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-02-26T10:17:42.489+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.a.c.c.C.[Tomcat].[localhost].[/api]    : Initializing Spring embedded WebApplicationContext
+2026-02-26T10:17:42.491+07:00  INFO 31320 --- [smart-garden] [restartedMain] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 4613 ms
+2026-02-26T10:17:42.833+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-02-26T10:17:42.955+07:00  INFO 31320 --- [smart-garden] [restartedMain] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-02-26T10:17:43.033+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-02-26T10:17:43.587+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-26T10:17:43.672+07:00  INFO 31320 --- [smart-garden] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-02-26T10:17:44.105+07:00  INFO 31320 --- [smart-garden] [restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@46a5748e
+2026-02-26T10:17:44.108+07:00  INFO 31320 --- [smart-garden] [restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-02-26T10:17:44.248+07:00  WARN 31320 --- [smart-garden] [restartedMain] org.hibernate.orm.deprecation            : HHH90000025: MySQL8Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-02-26T10:17:44.249+07:00  WARN 31320 --- [smart-garden] [restartedMain] org.hibernate.orm.deprecation            : HHH90000026: MySQL8Dialect has been deprecated; use org.hibernate.dialect.MySQLDialect instead
+2026-02-26T10:17:47.268+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-26T10:17:48.187+07:00  INFO 31320 --- [smart-garden] [restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-26T10:17:48.959+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-26T10:17:52.532+07:00  WARN 31320 --- [smart-garden] [restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-02-26T10:17:53.058+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@55549990, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@3c1e760, org.springframework.security.web.context.SecurityContextHolderFilter@14210d1f, org.springframework.security.web.header.HeaderWriterFilter@3d9c426d, org.springframework.web.filter.CorsFilter@3fa10416, org.springframework.security.web.authentication.logout.LogoutFilter@38a7af67, com.example.smart_garden.security.JwtAuthenticationFilter@64a1c1d8, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@4dfa735a, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@2068cee7, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@c4ef1bf, org.springframework.security.web.session.SessionManagementFilter@10e8dbc4, org.springframework.security.web.access.ExceptionTranslationFilter@324020b7, org.springframework.security.web.access.intercept.AuthorizationFilter@34bc4ffd]
+2026-02-26T10:17:53.942+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.b.d.a.OptionalLiveReloadServer       : LiveReload server is running on port 35729
+2026-02-26T10:17:54.234+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.i.endpoint.EventDrivenConsumer       : Adding {logging-channel-adapter:_org.springframework.integration.errorLogger} as a subscriber to the 'errorChannel' channel
+2026-02-26T10:17:54.235+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.i.channel.PublishSubscribeChannel    : Channel 'smart-garden.errorChannel' has 1 subscriber(s).
+2026-02-26T10:17:54.236+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.i.endpoint.EventDrivenConsumer       : started bean '_org.springframework.integration.errorLogger'
+2026-02-26T10:17:54.236+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.i.endpoint.EventDrivenConsumer       : Adding {message-handler:mqttInboundChannelHandler.serviceActivator} as a subscriber to the 'mqttInboundChannel' channel
+2026-02-26T10:17:54.237+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.integration.channel.DirectChannel    : Channel 'smart-garden.mqttInboundChannel' has 1 subscriber(s).
+2026-02-26T10:17:54.237+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.i.endpoint.EventDrivenConsumer       : started bean 'mqttInboundChannelHandler.serviceActivator'
+2026-02-26T10:17:54.237+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.i.endpoint.EventDrivenConsumer       : Adding {message-handler:mqttOutbound.serviceActivator} as a subscriber to the 'mqttOutboundChannel' channel
+2026-02-26T10:17:54.237+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.integration.channel.DirectChannel    : Channel 'smart-garden.mqttOutboundChannel' has 1 subscriber(s).
+2026-02-26T10:17:54.237+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.i.endpoint.EventDrivenConsumer       : started bean 'mqttOutbound.serviceActivator'
+2026-02-26T10:17:54.672+07:00  INFO 31320 --- [smart-garden] [restartedMain] .m.i.MqttPahoMessageDrivenChannelAdapter : started bean 'mqttInbound'; defined in: 'class path resource [com/example/smart_garden/mqtt/MqttConfig.class]'; from source: 'com.example.smart_garden.mqtt.MqttConfig.mqttInbound(com.example.smart_garden.mqtt.MqttProperties,org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory)'
+2026-02-26T10:17:54.706+07:00  INFO 31320 --- [smart-garden] [restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8081 (http) with context path '/api'
+2026-02-26T10:17:54.732+07:00  INFO 31320 --- [smart-garden] [restartedMain] c.e.smart_garden.SmartGardenApplication  : Started SmartGardenApplication in 17.932 seconds (process running for 19.771)
+2026-02-26T10:17:54.753+07:00  INFO 31320 --- [smart-garden] [restartedMain] c.e.smart_garden.config.RbacDataLoader   : Starting RBAC data initialization...
+2026-02-26T10:17:54.923+07:00  INFO 31320 --- [smart-garden] [restartedMain] c.e.smart_garden.config.RbacDataLoader   : RBAC data already initialized. Skip.
+2026-02-26T10:17:54.939+07:00  INFO 31320 --- [smart-garden] [restartedMain] c.e.smart_garden.config.DataInitializer  : Init data already applied (admin 'admin' exists). Skip seeding.
+2026-02-26T11:00:00.035+07:00  INFO 31320 --- [smart-garden] [scheduling-1] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-26T11:00:00.191+07:00  INFO 31320 --- [smart-garden] [scheduling-1] c.e.s.service.impl.WeatherServiceImpl    : Fetching weather for 1 unique locations: [Lat:21.0300, Lon:105.8500 (Loc:Hanoi)]
+2026-02-26T11:00:08.037+07:00  INFO 31320 --- [smart-garden] [scheduling-1] c.e.s.service.impl.WeatherServiceImpl    : Weather fetch job completed.
+2026-02-26T12:00:00.015+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-26T12:00:00.061+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Fetching weather for 1 unique locations: [Lat:21.0300, Lon:105.8500 (Loc:Hanoi)]
+2026-02-26T12:00:00.718+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Weather fetch job completed.
+2026-02-26T13:00:00.015+07:00  INFO 31320 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-26T13:00:00.059+07:00  INFO 31320 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : Fetching weather for 1 unique locations: [Lat:21.0300, Lon:105.8500 (Loc:Hanoi)]
+2026-02-26T13:00:00.658+07:00  INFO 31320 --- [smart-garden] [scheduling-3] c.e.s.service.impl.WeatherServiceImpl    : Weather fetch job completed.
+2026-02-26T14:00:00.018+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-26T14:00:00.064+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Fetching weather for 1 unique locations: [Lat:21.0300, Lon:105.8500 (Loc:Hanoi)]
+2026-02-26T14:00:05.215+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Weather fetch job completed.
+2026-02-26T15:00:00.018+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-26T15:00:00.052+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Fetching weather for 1 unique locations: [Lat:21.0300, Lon:105.8500 (Loc:Hanoi)]
+2026-02-26T15:00:13.580+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Weather fetch job completed.
+2026-02-26T16:00:00.015+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Starting scheduled weather fetch job...
+2026-02-26T16:00:00.065+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Fetching weather for 1 unique locations: [Lat:21.0300, Lon:105.8500 (Loc:Hanoi)]
+2026-02-26T16:00:00.766+07:00  INFO 31320 --- [smart-garden] [scheduling-2] c.e.s.service.impl.WeatherServiceImpl    : Weather fetch job completed.
+2026-02-26T16:47:30.195+07:00  INFO 31320 --- [smart-garden] [File Watcher] rtingClassPathChangeChangedEventListener : Restarting due to 283 class path changes (0 additions, 283 deletions, 0 modifications)
+2026-02-26T16:47:35.355+07:00  INFO 31320 --- [smart-garden] [Thread-5] .m.i.MqttPahoMessageDrivenChannelAdapter : stopped bean 'mqttInbound'; defined in: 'class path resource [com/example/smart_garden/mqtt/MqttConfig.class]'; from source: 'com.example.smart_garden.mqtt.MqttConfig.mqttInbound(com.example.smart_garden.mqtt.MqttProperties,org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory)'
+2026-02-26T16:47:35.356+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.i.endpoint.EventDrivenConsumer       : Removing {message-handler:mqttOutbound.serviceActivator} as a subscriber to the 'mqttOutboundChannel' channel
+2026-02-26T16:47:35.363+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.integration.channel.DirectChannel    : Channel 'smart-garden.mqttOutboundChannel' has 0 subscriber(s).
+2026-02-26T16:47:35.372+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.i.endpoint.EventDrivenConsumer       : stopped bean 'mqttOutbound.serviceActivator'
+2026-02-26T16:47:35.391+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.i.endpoint.EventDrivenConsumer       : Removing {logging-channel-adapter:_org.springframework.integration.errorLogger} as a subscriber to the 'errorChannel' channel
+2026-02-26T16:47:35.396+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.i.channel.PublishSubscribeChannel    : Channel 'smart-garden.errorChannel' has 0 subscriber(s).
+2026-02-26T16:47:35.400+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.i.endpoint.EventDrivenConsumer       : stopped bean '_org.springframework.integration.errorLogger'
+2026-02-26T16:47:35.401+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.i.endpoint.EventDrivenConsumer       : Removing {message-handler:mqttInboundChannelHandler.serviceActivator} as a subscriber to the 'mqttInboundChannel' channel
+2026-02-26T16:47:35.402+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.integration.channel.DirectChannel    : Channel 'smart-garden.mqttInboundChannel' has 0 subscriber(s).
+2026-02-26T16:47:35.402+07:00  INFO 31320 --- [smart-garden] [Thread-5] o.s.i.endpoint.EventDrivenConsumer       : stopped bean 'mqttInboundChannelHandler.serviceActivator'
+2026-02-26T16:47:35.468+07:00  INFO 31320 --- [smart-garden] [Thread-5] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-02-26T16:47:35.512+07:00  INFO 31320 --- [smart-garden] [Thread-5] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-02-26T16:47:35.559+07:00  INFO 31320 --- [smart-garden] [Thread-5] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.

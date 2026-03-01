@@ -19,7 +19,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -285,13 +287,57 @@ public class WeatherServiceImpl implements WeatherService {
         log.debug("Saved {} daily forecasts for {}", byDay.size(), locationName);
     }
 
+    /**
+     * Fetch current weather from OpenWeather for a location name (e.g. "Hanoi") and save to DB.
+     * Used when frontend requests weather for a city that has no data yet.
+     */
+    private void fetchAndSaveForLocation(String locationName) {
+        try {
+            String encoded = UriUtils.encodeQueryParam(locationName, StandardCharsets.UTF_8);
+            String url = String.format("%s/weather?q=%s&units=metric&appid=%s",
+                    apiUrl, encoded, apiKey);
+            OpenWeatherResponse resp = restTemplate.getForObject(url, OpenWeatherResponse.class);
+            if (resp != null) {
+                saveWeatherData(resp, locationName);
+                log.info("Fetched and saved current weather for location: {}", locationName);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch current weather for location '{}': {}", locationName, e.getMessage());
+        }
+    }
+
+    /**
+     * Fetch 5-day forecast from OpenWeather for a location name and save to DB.
+     */
+    private void fetchForecastAndSaveForLocation(String locationName) {
+        try {
+            String encoded = UriUtils.encodeQueryParam(locationName, StandardCharsets.UTF_8);
+            String url = String.format("%s/forecast?q=%s&units=metric&appid=%s",
+                    apiUrl, encoded, apiKey);
+            OpenWeatherForecastResponse resp = restTemplate.getForObject(url, OpenWeatherForecastResponse.class);
+            if (resp != null && resp.list() != null) {
+                saveForecastData(resp, locationName);
+                log.info("Fetched and saved forecast for location: {}", locationName);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch forecast for location '{}': {}", locationName, e.getMessage());
+        }
+    }
+
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public WeatherDataDetailResponse getCurrentWeather(String location) {
         WeatherData weatherData = weatherDataRepository
                 .findFirstByLocationOrderByForecastTimeDesc(location)
                 .orElse(null);
-        
+
+        if (weatherData == null) {
+            fetchAndSaveForLocation(location);
+            weatherData = weatherDataRepository
+                    .findFirstByLocationOrderByForecastTimeDesc(location)
+                    .orElse(null);
+        }
+
         if (weatherData == null) {
             return null;
         }
@@ -311,14 +357,20 @@ public class WeatherServiceImpl implements WeatherService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<DailyWeatherForecastResponse> getWeatherForecast(String location) {
         LocalDate today = LocalDate.now();
         LocalDate endDate = today.plusDays(5);
-        
+
         List<DailyWeatherForecast> forecasts = dailyWeatherForecastRepository
                 .findByLocationAndForecastDateBetween(location, today, endDate);
-        
+
+        if (forecasts.isEmpty()) {
+            fetchForecastAndSaveForLocation(location);
+            forecasts = dailyWeatherForecastRepository
+                    .findByLocationAndForecastDateBetween(location, today, endDate);
+        }
+
         return forecasts.stream()
                 .map(f -> new DailyWeatherForecastResponse(
                         f.getId(),

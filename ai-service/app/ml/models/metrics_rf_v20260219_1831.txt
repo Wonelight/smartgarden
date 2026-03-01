@@ -1,0 +1,87 @@
+Model: rf_v20260219_1831.joblib
+Target: depletion_after_24h
+n_train=4000, n_test=1000, n_features=38
+
+──────────────────────────────────────────
+[TARGET DISTRIBUTION]
+  Train  → mean=7.5559, std=5.3323
+  Test   → mean=1.1653, std=0.9303
+
+──────────────────────────────────────────
+[TRAIN METRICS] (biased — tham khảo)
+  R²   = 0.9984
+  MAE  = 0.1578
+  RMSE = 0.2135
+  MAPE = 15.52%
+  Residual mean=0.0011, std=0.2135
+
+──────────────────────────────────────────
+[TEST METRICS ★] (unbiased — đánh giá chính)
+  R²   = 0.4278
+  MAE  = 0.5373
+  RMSE = 0.7033
+  MAPE = 268.05%
+  Residual mean=-0.2864, std=0.6424, skewness=-0.5991
+  Prediction percentiles: {'p5': 0.5675, 'p25': 0.9113, 'p50': 1.2974, 'p75': 1.709, 'p95': 2.9408}
+
+──────────────────────────────────────────
+[OVERFITTING CHECK]
+  R² gap (train - test)     = 0.5706
+  RMSE ratio (test / train) = 3.2949
+  Verdict: OVERFIT — train R² cao nhưng gap train/test > 0.20
+
+──────────────────────────────────────────
+[CV STABILITY]
+  CV R² per fold   = [0.9464, 0.9632, 0.9552, 0.8241, 0.5066]
+  CV R² mean ± std = 0.8391 ± 0.1739
+  CV best neg_MSE  = -1.0049
+  CV R² (approx)   = 0.9647
+
+──────────────────────────────────────────
+[USABILITY VERDICT]
+  >>> POOR — cần cải thiện (thêm data, feature engineering)
+
+──────────────────────────────────────────
+[BEST HYPERPARAMETERS]
+  {'rf__n_estimators': 300, 'rf__min_samples_split': 5, 'rf__min_samples_leaf': 2, 'rf__max_depth': 15}
+
+──────────────────────────────────────────
+[FEATURE IMPORTANCE]
+  depletion_deep: 0.875515
+  depletion_ratio: 0.067323
+  soil_x_depletion: 0.025285
+  depletion_shallow: 0.020551
+  forecast_rain_d0: 0.001429
+  forecast_rain_d1: 0.001264
+  raw: 0.000933
+  temp: 0.000904
+  wind_speed: 0.000815
+  kc: 0.000684
+  etc: 0.000665
+  forecast_rain_d2: 0.000422
+  soil_moist_shallow: 0.000416
+  soil_moist_deficit: 0.000375
+  soil_moist_deep: 0.000368
+  soil_moist_avg: 0.000322
+  humidity: 0.000319
+  temp_x_humidity: 0.000305
+  soil_moist_trend_1h: 0.00029
+  soil_moist_ratio: 0.000277
+  hour_cos: 0.000247
+  hour_sin: 0.000226
+  soil_moist_diff: 0.000211
+  growth_stage: 0.000194
+  light: 0.00019
+  solar_x_temp: 0.000117
+  month_cos: 8.9e-05
+  crop_type_lettuce: 6.1e-05
+  soil_type_clay_loam: 4e-05
+  month_sin: 3.8e-05
+  soil_type_loam: 2.8e-05
+  crop_type_rice: 2.8e-05
+  soil_type_sandy_loam: 1.4e-05
+  crop_type_pepper: 1.4e-05
+  crop_type_cucumber: 1.4e-05
+  crop_type_tomato: 1.4e-05
+  soil_type_clay: 1.2e-05
+  soil_type_sandy: 1e-06

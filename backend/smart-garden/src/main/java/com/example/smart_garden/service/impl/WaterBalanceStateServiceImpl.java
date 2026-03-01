@@ -8,6 +8,7 @@ import com.example.smart_garden.exception.AppException;
 import com.example.smart_garden.exception.ErrorCode;
 import com.example.smart_garden.repository.DeviceRepository;
 import com.example.smart_garden.repository.DeviceWaterBalanceStateRepository;
+import com.example.smart_garden.repository.SensorDataRepository;
 import com.example.smart_garden.service.WaterBalanceStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Implementation của WaterBalanceStateService.
@@ -32,8 +34,10 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
 
     private final DeviceWaterBalanceStateRepository stateRepository;
     private final DeviceRepository deviceRepository;
+    private final SensorDataRepository sensorDataRepository;
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
     private static final int TREND_WINDOW = 6; // ~1h nếu mỗi 10 phút đọc 1 lần
+    private static final int LAG_HOURS_24 = 24;
 
     @Override
     @Transactional(readOnly = true)
@@ -100,6 +104,22 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
             state.setSoilMoisHistory(history);
         }
 
+        // Append current weighted depletion to history (để tính lag 6h/12h/24h)
+        float weighted = state.getWeightedDepletion();
+        List<Map<String, Object>> deplHist = state.getDepletionHistory() != null
+                ? new ArrayList<>(state.getDepletionHistory())
+                : new ArrayList<>();
+        Map<String, Object> deplEntry = new HashMap<>();
+        deplEntry.put("timestamp", LocalDateTime.now().format(ISO_FORMATTER));
+        deplEntry.put("value", weighted);
+        deplHist.add(deplEntry);
+        // Giữ tối đa 24h (ví dụ 144 điểm nếu 10 phút/lần)
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(LAG_HOURS_24);
+        deplHist = deplHist.stream()
+                .filter(e -> parseTimestamp((String) e.get("timestamp")).isAfter(cutoff))
+                .collect(Collectors.toList());
+        state.setDepletionHistory(deplHist);
+
         state = stateRepository.save(state);
         log.debug("Updated water balance state for device {}: shallow_depl={}, deep_depl={}, weighted={}",
                 deviceId, state.getShallowDepletion(), state.getDeepDepletion(), state.getWeightedDepletion());
@@ -154,14 +174,22 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
                 .deepRaw(0.0f)
                 .lastIrrigation(0.0f)
                 .soilMoisHistory(new ArrayList<>())
+                .depletionHistory(new ArrayList<>())
                 .build();
         return stateRepository.save(state);
     }
 
     private WaterBalanceStateResponse mapToResponse(DeviceWaterBalanceState state) {
         Float trend = calculateSoilMoisTrend(state.getSoilMoisHistory());
+        Long deviceId = state.getDevice().getId();
+        float depletionTrend6h = calculateDepletionTrend(state.getDepletionHistory(), 6);
+        float depletionTrend12h = calculateDepletionTrend(state.getDepletionHistory(), 12);
+        float depletionTrend24h = calculateDepletionTrend(state.getDepletionHistory(), 24);
+        float rainLast6h = sumRainInWindow(deviceId, 6);
+        float rainLast12h = sumRainInWindow(deviceId, 12);
+        float rainLast24h = sumRainInWindow(deviceId, 24);
         return new WaterBalanceStateResponse(
-                state.getDevice().getId(),
+                deviceId,
                 state.getShallowDepletion(),
                 state.getDeepDepletion(),
                 state.getShallowTaw(),
@@ -174,8 +202,64 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
                 state.getLastIrrigation(),
                 state.getSoilMoisHistory(),
                 trend,
-                state.getUpdatedAt()
+                state.getUpdatedAt(),
+                depletionTrend6h,
+                depletionTrend12h,
+                depletionTrend24h,
+                rainLast6h,
+                rainLast12h,
+                rainLast24h,
+                0.0f, 0.0f, 0.0f // etc_rolling: chưa lưu history, để 0
         );
+    }
+
+    /** Trend = giá trị cuối - giá trị đầu trong window (giống AI _lag_trend). */
+    private float calculateDepletionTrend(List<Map<String, Object>> history, int hours) {
+        if (history == null || history.size() < 2) {
+            return 0.0f;
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(hours);
+        List<Map<String, Object>> inWindow = history.stream()
+                .filter(e -> parseTimestamp((String) e.get("timestamp")).isAfter(cutoff))
+                .collect(Collectors.toList());
+        if (inWindow.size() < 2) {
+            inWindow = new ArrayList<>(history);
+        }
+        if (inWindow.size() < 2) {
+            return 0.0f;
+        }
+        Double first = getDoubleValue(inWindow.get(0).get("value"));
+        Double last = getDoubleValue(inWindow.get(inWindow.size() - 1).get("value"));
+        if (first == null || last == null) {
+            return 0.0f;
+        }
+        return (float) (last - first);
+    }
+
+    /** Tổng rain (0/1) từ sensor trong window — proxy cho rain_last_*h. */
+    private float sumRainInWindow(Long deviceId, int hours) {
+        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = end.minusHours(hours);
+        List<com.example.smart_garden.entity.SensorData> list = sensorDataRepository
+                .findByDeviceIdAndTimestampBetween(deviceId, start, end);
+        float sum = 0.0f;
+        for (com.example.smart_garden.entity.SensorData sd : list) {
+            if (Boolean.TRUE.equals(sd.getRainDetected())) {
+                sum += 1.0f;
+            }
+        }
+        return sum;
+    }
+
+    private static LocalDateTime parseTimestamp(String ts) {
+        if (ts == null) {
+            return LocalDateTime.MIN;
+        }
+        try {
+            return LocalDateTime.parse(ts, ISO_FORMATTER);
+        } catch (Exception e) {
+            return LocalDateTime.MIN;
+        }
     }
 
     private Double getDoubleValue(Object value) {

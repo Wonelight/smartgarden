@@ -1,0 +1,18 @@
+========== ĐÁNH GIÁ MODEL XGBOOST (MSE) ==========
+
+[RESIDUAL — Test set]
+  R²   = 0.5578
+  MAE  = 0.3908
+  RMSE = 0.5122
+  Bias = -0.0870
+  Within ±0.5mm = 71.3%
+  Within ±1.0mm = 94.6%
+  Directional accuracy = 97.2%
+  Median AE = 0.3136
+  MAE by range: {'low (<0.3mm)': 0.4652, 'mid (0.3-1mm)': 0.2706, 'high (>1mm)': 0.4632}
+
+[HYBRID — depletion_after_24h]
+  R²   = 0.9703
+  MAE  = 0.3908
+  RMSE = 0.5122
+  Within ±1mm = 94.6%

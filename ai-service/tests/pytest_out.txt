@@ -1,0 +1,26 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-9.0.2, pluggy-1.6.0 -- D:\DoAn_Garden\smart_garden\ai-service\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\DoAn_Garden\smart_garden\ai-service
+plugins: anyio-4.12.1
+collecting ... collected 17 items
+
+tests/test_fao_hourly.py::TestHourlyEto::test_midday_tropical_range PASSED [  5%]
+tests/test_fao_hourly.py::TestHourlyEto::test_nighttime_lower_than_daytime PASSED [ 11%]
+tests/test_fao_hourly.py::TestHourlyEto::test_non_negative PASSED        [ 17%]
+tests/test_fao_hourly.py::TestHourlyEto::test_daily_vs_hourly_consistency PASSED [ 23%]
+tests/test_fao_hourly.py::TestHourlyNetRadiation::test_nighttime_ra_zero PASSED [ 29%]
+tests/test_fao_hourly.py::TestHourlyNetRadiation::test_midday_positive_rn PASSED [ 35%]
+tests/test_fao_hourly.py::TestKcAdjustment::test_high_wind_low_rh_increases_kc PASSED [ 41%]
+tests/test_fao_hourly.py::TestKcAdjustment::test_low_wind_high_rh_decreases_kc PASSED [ 47%]
+tests/test_fao_hourly.py::TestKcAdjustment::test_initial_stage_no_adjustment PASSED [ 52%]
+tests/test_fao_hourly.py::TestKcAdjustment::test_development_stage_no_adjustment PASSED [ 58%]
+tests/test_fao_hourly.py::TestKcAdjustment::test_result_always_positive PASSED [ 64%]
+tests/test_fao_hourly.py::TestDynamicBlending::test_reset_when_soil_at_fc PASSED [ 70%]
+tests/test_fao_hourly.py::TestDynamicBlending::test_reset_when_soil_above_fc PASSED [ 76%]
+tests/test_fao_hourly.py::TestDynamicBlending::test_wet_soil_trusts_sensor_more PASSED [ 82%]
+tests/test_fao_hourly.py::TestDynamicBlending::test_dry_soil_trusts_calc_more PASSED [ 88%]
+tests/test_fao_hourly.py::TestDynamicBlending::test_result_clamped_to_taw PASSED [ 94%]
+tests/test_fao_hourly.py::TestDynamicBlending::test_result_non_negative PASSED [100%]
+
+============================= 17 passed in 0.22s ==============================

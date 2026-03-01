@@ -31,6 +31,7 @@ public final class ApiPaths {
     public static final String SEG_DEVICES = "/devices";
     public static final String SEG_DEVICES_CONNECT = "/devices/connect";
     public static final String SEG_DEVICE_ID = "/{id}";
+    public static final String SEG_DEVICE_DELETE = "/devices/{id}/delete";
     public static final String SEG_DEVICE_ID_PARAM = "/{deviceId}";
     public static final String SEG_DEVICES_CONTROLS = "/devices/controls";
     public static final String SEG_DEVICE_CONTROLS = "/devices/{deviceId}/controls";

@@ -1,0 +1,42 @@
+Model: rf_v20260219_0934.joblib
+Target: actual_irrigation_mm_next_24h
+R²,MAE,RMSE,cv_r2_mean,cv_r2_std,n_samples
+0.9984,0.0033,0.0646,0.2783,1.4435,1000
+
+Feature importance:
+  depletion_shallow: 0.38
+  depletion_deep: 0.34
+  depletion: 0.28
+  temp: 0.0
+  humidity: 0.0
+  light: 0.0
+  wind_speed: 0.0
+  forecast_rain: 0.0
+  forecast_rain_d0: 0.0
+  forecast_rain_d1: 0.0
+  forecast_rain_d2: 0.0
+  soil_moist_shallow: 0.0
+  soil_moist_deep: 0.0
+  soil_moist_avg: 0.0
+  soil_moist_diff: 0.0
+  soil_moist_ratio: 0.0
+  soil_moist_trend_1h: 0.0
+  eto: 0.0
+  etc: 0.0
+  kc: 0.0
+  depletion_ratio: 0.0
+  taw: 0.0
+  raw: 0.0
+  soil_moist_deficit: 0.0
+  temp_x_humidity: 0.0
+  solar_x_temp: 0.0
+  soil_x_depletion: 0.0
+  growth_stage: 0.0
+  crop_type_corn: 0.0
+  crop_type_fruit: 0.0
+  crop_type_rice: 0.0
+  crop_type_vegetable: 0.0
+  soil_type_clay: 0.0
+  soil_type_loam: 0.0
+  soil_type_sandy: 0.0
+  soil_type_silt_loam: 0.0

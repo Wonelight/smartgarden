@@ -37,6 +37,18 @@ public interface DeviceService {
      */
     UserDeviceDetailResponse connectDeviceByMac(String macAddress);
 
+    /**
+     * Ngắt kết nối thiết bị khỏi tài khoản hiện tại (set user_id = null).
+     * Thiết bị vẫn tồn tại trong hệ thống, có thể được kết nối lại bởi user khác hoặc chính user sau này.
+     */
+    void disconnectMyDevice(Long id);
+
+    /**
+     * Xóa thiết bị (soft delete) khi user sở hữu thiết bị đó.
+     * Thiết bị được đánh dấu deleted_at, không còn hiển thị trong hệ thống.
+     */
+    void deleteMyDevice(Long id);
+
     // ================== ADMIN ==================
 
     /**

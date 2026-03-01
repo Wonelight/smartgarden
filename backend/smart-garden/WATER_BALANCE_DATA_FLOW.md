@@ -209,7 +209,7 @@ Trả về trong response
 ```
 PreprocessingService.transform() → DataFrame với features
   ↓
-RfService.predict() → water_mm, confidence
+PredictionService.predict() → water_mm, confidence
   ↓
 Post-processing (check depletion threshold)
   ↓

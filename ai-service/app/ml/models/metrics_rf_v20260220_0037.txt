@@ -1,0 +1,92 @@
+Model: rf_v20260220_0037.joblib
+Target: residual_target
+n_train=14016, n_test=3504, n_features=37
+
+──────────────────────────────────────────
+[TARGET DISTRIBUTION]
+  Train  → mean=1.2836, std=0.9348
+  Test   → mean=1.1938, std=0.7572
+
+──────────────────────────────────────────
+[TRAIN METRICS] (biased — tham khảo)
+  R²   = 0.8868
+  MAE  = 0.2128
+  RMSE = 0.3145
+  MAPE = 64.43%
+  Residual mean=0.0008, std=0.3145
+
+──────────────────────────────────────────
+[TEST METRICS ★] (unbiased — đánh giá chính)
+  R²   = 0.6676
+  MAE  = 0.3034
+  RMSE = 0.4365
+  MAPE = 52.34%
+  Residual mean=-0.0736, std=0.4303, skewness=-0.3189
+  Prediction percentiles: {'p5': 0.2778, 'p25': 0.6744, 'p50': 1.2114, 'p75': 1.6996, 'p95': 2.6141}
+
+──────────────────────────────────────────
+[OVERFITTING CHECK]
+  R² gap (train - test)     = 0.2193
+  RMSE ratio (test / train) = 1.388
+  Verdict: WARNING — gap train/test R² = 0.219, nên kiểm tra
+
+──────────────────────────────────────────
+[CV STABILITY]
+  CV R² per fold   = [0.3957, 0.3336, -0.0358, 0.6867, 0.5214]
+  CV R² mean ± std = 0.3803 ± 0.2406
+  CV best neg_MSE  = -0.5482
+  CV R² (approx)   = 0.3727
+
+──────────────────────────────────────────
+[USABILITY VERDICT]
+  >>> ACCEPTABLE — có thể dùng, nên cải thiện thêm
+
+──────────────────────────────────────────
+[BEST HYPERPARAMETERS]
+  {'rf__n_estimators': 400, 'rf__min_samples_split': 15, 'rf__min_samples_leaf': 5, 'rf__max_features': 0.8, 'rf__max_depth': 12}
+
+──────────────────────────────────────────
+[FEATURE IMPORTANCE]
+  forecast_rain_d1: 0.214153
+  stress_ratio: 0.200488
+  forecast_rain_d0: 0.119911
+  etc_cumulative_24h: 0.084848
+  kc: 0.046817
+  season_x_stress: 0.04489
+  temp: 0.044707
+  net_water_loss_24h: 0.041241
+  soil_moist_shallow: 0.032105
+  season_x_rain: 0.030266
+  hour_sin: 0.02179
+  etc: 0.012688
+  season_x_etc: 0.012462
+  humidity: 0.01224
+  raw: 0.010136
+  soil_moist_deep: 0.008629
+  month_sin: 0.008434
+  temp_x_humidity: 0.006713
+  soil_moist_deficit: 0.006634
+  light: 0.006001
+  forecast_rain_d2: 0.005476
+  wind_speed: 0.004749
+  soil_moist_trend_1h: 0.004354
+  solar_x_temp: 0.003386
+  hour_cos: 0.003386
+  growth_stage: 0.002785
+  crop_type_pepper: 0.002233
+  month_cos: 0.002139
+  soil_type_sandy: 0.001865
+  crop_type_rice: 0.001217
+  crop_type_cucumber: 0.001093
+  crop_type_lettuce: 0.00094
+  soil_type_sandy_loam: 0.000393
+  soil_type_clay_loam: 0.000318
+  soil_type_loam: 0.000287
+  crop_type_tomato: 0.000172
+  soil_type_clay: 5.1e-05
+
+──────────────────────────────────────────
+[HYBRID EVALUATION — FAO-56 + RF → depletion_after_24h]
+  FAO-56 only → R²=0.9439, MAE=1.194, RMSE=1.4136
+  Hybrid      → R²=0.9946, MAE=0.3035, RMSE=0.4365, MAPE=35.7%
+  Improvement → ΔR²=+0.0507, ΔMAE=0.8905, ΔRMSE=0.9771

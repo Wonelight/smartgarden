@@ -129,6 +129,38 @@ public class DeviceServiceImpl implements DeviceService {
         return deviceMapper.toUserDetail(device);
     }
 
+    @Override
+    @Transactional
+    public void disconnectMyDevice(Long id) {
+        User user = getCurrentUser();
+        Device device = deviceRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.DEVICE_NOT_FOUND));
+
+        if (device.getUser() == null || !device.getUser().getId().equals(user.getId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Device does not belong to you");
+        }
+
+        device.setUser(null);
+        deviceRepository.save(device);
+        log.info("User {} disconnected device: {}", user.getUsername(), device.getDeviceCode());
+    }
+
+    @Override
+    @Transactional
+    public void deleteMyDevice(Long id) {
+        User user = getCurrentUser();
+        Device device = deviceRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.DEVICE_NOT_FOUND));
+
+        if (device.getUser() == null || !device.getUser().getId().equals(user.getId())) {
+            throw new AppException(ErrorCode.ACCESS_DENIED, "Device does not belong to you");
+        }
+
+        device.softDelete();
+        deviceRepository.save(device);
+        log.info("User {} deleted device: {}", user.getUsername(), device.getDeviceCode());
+    }
+
     // ================== ADMIN ==================
 
     @Override

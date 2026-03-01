@@ -12,8 +12,11 @@ import com.example.smart_garden.entity.enums.PredictionType;
 import com.example.smart_garden.exception.AppException;
 import com.example.smart_garden.exception.ErrorCode;
 import com.example.smart_garden.repository.*;
+import com.example.smart_garden.dto.waterbalance.request.UpdateWaterBalanceStateRequest;
+import com.example.smart_garden.dto.waterbalance.response.WaterBalanceStateResponse;
 import com.example.smart_garden.service.AgroPhysicsService;
 import com.example.smart_garden.service.AiPredictionService;
+import com.example.smart_garden.service.WaterBalanceStateService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,6 +29,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -53,7 +57,10 @@ public class AiPredictionServiceImpl implements AiPredictionService {
     private final CropSeasonRepository cropSeasonRepository;
     private final DailyWeatherForecastRepository dailyWeatherForecastRepository;
     private final AgroPhysicsService agroPhysicsService;
+    private final WaterBalanceStateService waterBalanceStateService;
     private final ObjectMapper objectMapper;
+
+    private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_DATE_TIME;
 
     // ================== PREDICT ==================
 
@@ -82,6 +89,8 @@ public class AiPredictionServiceImpl implements AiPredictionService {
         payload.put("sensors", buildSensorPayload(sensorData));
         payload.put("openweather", buildWeatherPayload(device));
         payload.put("crop", buildCropPayload(device));
+        // Single source of truth: state từ DB, gửi kèm để AI không cần GET/PUT
+        payload.put("water_balance", buildWaterBalancePayload(waterBalanceStateService.getState(request.deviceId())));
 
         // 5. Call Python AI service
         Map<String, Object> pythonResponse = callPythonService(
@@ -114,7 +123,10 @@ public class AiPredictionServiceImpl implements AiPredictionService {
         prediction = mlPredictionRepository.save(prediction);
         log.info("Saved AI prediction {} for device {}", prediction.getId(), request.deviceId());
 
-        // 7. Update FuzzyLogicResult if exists
+        // 7. Persist updated water balance from AI (single source of truth: chỉ backend ghi DB)
+        persistUpdatedWaterBalanceFromResponse(request.deviceId(), pythonResponse);
+
+        // 8. Update FuzzyLogicResult if exists
         FuzzyLogicResult latestFuzzy = fuzzyLogicResultRepository
                 .findFirstByDeviceIdOrderByTimestampDesc(request.deviceId())
                 .orElse(null);
@@ -221,6 +233,71 @@ public class AiPredictionServiceImpl implements AiPredictionService {
     }
 
     // ================== PAYLOAD BUILDERS ==================
+
+    /**
+     * Build water_balance payload block từ state trong DB (single source of truth).
+     * AI nhận snapshot này trong request, không cần GET state từ backend.
+     * Snake_case để khớp contract Python.
+     */
+    private Map<String, Object> buildWaterBalancePayload(WaterBalanceStateResponse state) {
+        Map<String, Object> wb = new LinkedHashMap<>();
+        wb.put("shallow_depletion", state.shallowDepletion());
+        wb.put("deep_depletion", state.deepDepletion());
+        wb.put("shallow_taw", state.shallowTaw());
+        wb.put("deep_taw", state.deepTaw());
+        wb.put("shallow_raw", state.shallowRaw());
+        wb.put("deep_raw", state.deepRaw());
+        wb.put("last_irrigation", state.lastIrrigation());
+        wb.put("last_updated", state.lastUpdated() != null ? state.lastUpdated().format(ISO_DATE_TIME) : null);
+        wb.put("soil_moist_history", state.soilMoisHistory() != null ? state.soilMoisHistory() : List.of());
+        // Lag features (backend tính từ depletion_history + sensor data)
+        wb.put("depletion_trend_6h", state.depletionTrend6h() != null ? state.depletionTrend6h() : 0.0f);
+        wb.put("depletion_trend_12h", state.depletionTrend12h() != null ? state.depletionTrend12h() : 0.0f);
+        wb.put("depletion_trend_24h", state.depletionTrend24h() != null ? state.depletionTrend24h() : 0.0f);
+        wb.put("rain_last_6h", state.rainLast6h() != null ? state.rainLast6h() : 0.0f);
+        wb.put("rain_last_12h", state.rainLast12h() != null ? state.rainLast12h() : 0.0f);
+        wb.put("rain_last_24h", state.rainLast24h() != null ? state.rainLast24h() : 0.0f);
+        wb.put("etc_rolling_6h", state.etcRolling6h() != null ? state.etcRolling6h() : 0.0f);
+        wb.put("etc_rolling_12h", state.etcRolling12h() != null ? state.etcRolling12h() : 0.0f);
+        wb.put("etc_rolling_24h", state.etcRolling24h() != null ? state.etcRolling24h() : 0.0f);
+        return wb;
+    }
+
+    /**
+     * Nếu AI trả về updated_water_balance thì backend persist vào DB (chỉ backend ghi state).
+     * Bỏ qua nếu response không có field này (tương thích khi AI chưa trả về).
+     */
+    @SuppressWarnings("unchecked")
+    private void persistUpdatedWaterBalanceFromResponse(Long deviceId, Map<String, Object> pythonResponse) {
+        Object updated = pythonResponse.get("updated_water_balance");
+        if (updated == null || !(updated instanceof Map)) {
+            return;
+        }
+        Map<String, Object> u = (Map<String, Object>) updated;
+        try {
+            Float shallowDepletion = parseFloat(u.get("shallow_depletion"));
+            Float deepDepletion = parseFloat(u.get("deep_depletion"));
+            Float shallowTaw = parseFloat(u.get("shallow_taw"));
+            Float deepTaw = parseFloat(u.get("deep_taw"));
+            Float shallowRaw = parseFloat(u.get("shallow_raw"));
+            Float deepRaw = parseFloat(u.get("deep_raw"));
+            Float lastIrr = parseFloat(u.get("last_irrigation"));
+            if (shallowDepletion == null || deepDepletion == null || shallowTaw == null || deepTaw == null
+                    || shallowRaw == null || deepRaw == null) {
+                log.warn("AI updated_water_balance missing required fields, skip persist");
+                return;
+            }
+            List<Map<String, Object>> soilHistory = u.get("soil_moist_history") instanceof List
+                    ? (List<Map<String, Object>>) u.get("soil_moist_history")
+                    : null;
+            waterBalanceStateService.updateState(deviceId, new UpdateWaterBalanceStateRequest(
+                    shallowDepletion, deepDepletion, shallowTaw, deepTaw, shallowRaw, deepRaw,
+                    lastIrr != null ? lastIrr : 0.0f, null, soilHistory));
+            log.info("Persisted updated water balance from AI response for device {}", deviceId);
+        } catch (Exception e) {
+            log.warn("Failed to persist updated_water_balance from AI: {}", e.getMessage());
+        }
+    }
 
     /**
      * Build sensor payload block from SensorData entity.

@@ -71,6 +71,11 @@ public class DeviceWaterBalanceState extends BaseEntity {
     @Column(name = "soil_moist_history", columnDefinition = "json")
     private List<Map<String, Object>> soilMoisHistory;
 
+    /** Lịch sử weighted depletion theo thời gian (để tính lag 6h/12h/24h). Mỗi entry: {"timestamp": ISO, "value": number}. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "depletion_history", columnDefinition = "json")
+    private List<Map<String, Object>> depletionHistory;
+
     // Computed properties
     public Float getWeightedDepletion() {
         return 0.6f * deepDepletion + 0.4f * shallowDepletion;
