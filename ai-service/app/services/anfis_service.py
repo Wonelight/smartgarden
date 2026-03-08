@@ -6,11 +6,15 @@ Replaces the old stub with the full physics-informed pipeline.
 import logging
 from typing import Dict, Any
 
+import pandas as pd
+
 from app.models.irrigation import (
     AiPredictRequest,
     AiPredictResponse,
     AiTrainRequest,
     AiTrainResponse,
+    TrainBatchRequest,
+    TrainBatchResponse,
     UpdatedWaterBalance,
 )
 from app.services.preprocessing_service import PreprocessingService
@@ -204,3 +208,78 @@ class AnfisStubService:
                 "note": "Training requires labeled data — using mock response",
             },
         )
+
+    def train_batch(self, request: TrainBatchRequest) -> TrainBatchResponse:
+        """
+        Retrain XGBoost/RF pipeline từ labeled samples gửi từ BatchJobServiceImpl.
+
+        Pipeline:
+          1. Flatten features dict từ mỗi TrainingSample → DataFrame rows
+          2. Align columns với NUMERIC_FEATURES + CATEGORICAL_FEATURES
+          3. Gọi PredictionService.train(X, y) với y = actual_depletion_mm
+          4. Model mới được persist qua save_pipeline()
+          5. Trả metrics về backend
+        """
+        from app.ml.pipeline_builder import NUMERIC_FEATURES, CATEGORICAL_FEATURES
+
+        n_actual = sum(1 for s in request.samples if s.label_source == "actual_irrigation")
+        n_proxy  = sum(1 for s in request.samples if s.label_source == "proxy_model")
+
+        logger.info(
+            "train_batch: %d total samples (%d actual, %d proxy)",
+            len(request.samples), n_actual, n_proxy,
+        )
+
+        # ── Build X, y ─────────────────────────────────────────────────
+        rows = []
+        labels = []
+        for sample in request.samples:
+            # features là dict được lưu từ MlPrediction.featuresUsed
+            rows.append(sample.features)
+            labels.append(sample.actual_depletion_mm)
+
+        X = pd.DataFrame(rows)
+        y = pd.Series(labels, name="actual_depletion_mm")
+
+        # Giữ đúng các cột mà pipeline đã được train
+        all_cols = NUMERIC_FEATURES + CATEGORICAL_FEATURES
+        for col in all_cols:
+            if col not in X.columns:
+                X[col] = None  # SimpleImputer(median) sẽ fill sau
+
+        X = X[all_cols]  # đảm bảo thứ tự cột nhất quán
+
+        # ── Train ──────────────────────────────────────────────────────
+        if not self.predictor.is_trained and len(request.samples) < 10:
+            logger.warning("Model chưa được train và chỉ có %d samples — bỏ qua", len(request.samples))
+            return TrainBatchResponse(
+                status="skipped",
+                n_samples=len(request.samples),
+                n_actual=n_actual,
+                n_proxy=n_proxy,
+                message="Not enough samples and no existing model to warm-start",
+            )
+
+        try:
+            metrics = self.predictor.train(X, y)
+            return TrainBatchResponse(
+                status="completed",
+                n_samples=len(request.samples),
+                n_actual=n_actual,
+                n_proxy=n_proxy,
+                r2=metrics.get("r2"),
+                mae=metrics.get("mae"),
+                cv_r2_mean=metrics.get("cv_r2_mean"),
+                model_path=metrics.get("model_path"),
+                message=f"Retrained on {len(request.samples)} samples "
+                        f"(r2={metrics.get('r2'):.3f}, mae={metrics.get('mae'):.3f}mm)",
+            )
+        except Exception as e:
+            logger.error("train_batch failed: %s", e, exc_info=True)
+            return TrainBatchResponse(
+                status="failed",
+                n_samples=len(request.samples),
+                n_actual=n_actual,
+                n_proxy=n_proxy,
+                message=str(e),
+            )

@@ -222,20 +222,16 @@ const WeatherWidget = ({ sensorHumidity, rawDevice }: { sensorHumidity: number; 
                                 <div className={`h-full rounded-full ${w.rain > 60 ? 'bg-blue-500' : 'bg-emerald-500'}`} style={{ width: `${w.rain}%` }} />
                             </div>
                             <div className={`text-[10px] font-semibold leading-none ${w.rain > 60 ? 'text-blue-500' : 'text-slate-400'}`}>{w.rain}%</div>
-                            <div className="mt-1.5">
-                                {w.suitable
-                                    ? <div className="w-3.5 h-3.5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[9px] font-semibold">✓</div>
-                                    : <div className="w-3.5 h-3.5 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-[9px] font-semibold">✕</div>
-                                }
-                            </div>
                         </div>
                     ))}
                 </div>
-                {/* Tip */}
-                <div className="mt-3 flex items-start gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
-                    <span className="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100"><Sprout className="w-5 h-5 text-emerald-500" /></span>
-                    <div className="text-[13px] text-slate-600 leading-relaxed pt-0.5">
-                        <span className="font-semibold text-emerald-600">Gợi ý hôm nay: </span>{data.weather.tip}
+                <div className="mt-auto">
+                    {/* Tip */}
+                    <div className="flex items-start gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                        <span className="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100"><Sprout className="w-5 h-5 text-emerald-500" /></span>
+                        <div className="text-[13px] text-slate-600 leading-relaxed pt-0.5">
+                            <span className="font-semibold text-emerald-600">Gợi ý hôm nay: </span>{data.weather.tip}
+                        </div>
                     </div>
                 </div>
             </div>

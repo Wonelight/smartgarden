@@ -56,6 +56,17 @@ public interface MlPredictionRepository extends JpaRepository<MlPrediction, Long
     );
 
     /**
+     * Lấy MlPrediction có featuresUsed (đã có features thực) trong khoảng thời gian.
+     * Dùng cho weekly training job.
+     */
+    @Query("SELECT mlp FROM MlPrediction mlp WHERE mlp.featuresUsed IS NOT NULL " +
+           "AND mlp.createdAt BETWEEN :startTime AND :endTime ORDER BY mlp.createdAt ASC")
+    List<MlPrediction> findTrainablePredictions(
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime
+    );
+
+    /**
      * Đếm số dự báo ML của device
      */
     long countByDeviceId(Long deviceId);

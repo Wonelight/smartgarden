@@ -430,7 +430,7 @@ const GardenProfileTab: React.FC<GardenProfileTabProps> = ({ deviceId, devices, 
     const irrigationSaveMutation = useMutation({
         mutationFn: () => irrigationApi.userUpdateConfig(deviceId!, {
             pumpFlowRate: irrigationDraft.pumpFlowRate ?? undefined,
-            nozzleCount:  irrigationDraft.nozzleCount  ?? undefined,
+            nozzleCount: irrigationDraft.nozzleCount ?? undefined,
         }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['irrigationConfig', deviceId] }),
         onError: () => toast.error('Không thể lưu cấu hình máy bơm.'),
@@ -588,7 +588,7 @@ const GardenProfileTab: React.FC<GardenProfileTabProps> = ({ deviceId, devices, 
                                     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border transition-all duration-300 ${isAutoMode
                                         ? 'bg-emerald-50 border-emerald-200/80 text-emerald-700'
                                         : 'bg-amber-50 border-amber-200/80 text-amber-700'
-                                    }`}>
+                                        }`}>
                                         <span className="text-[11px] font-bold tracking-wide select-none">
                                             {isAutoMode ? 'AUTO' : 'THỦ CÔNG'}
                                         </span>
@@ -991,17 +991,16 @@ const GardenProfileTab: React.FC<GardenProfileTabProps> = ({ deviceId, devices, 
                             {/* Area input */}
                             <div className="space-y-3">
                                 <label className="block text-sm font-bold tracking-tight text-slate-800">Diện tích vườn</label>
-                                <div className="flex gap-2">
+                                <div className="relative flex items-center">
                                     <input
                                         type="number"
                                         min={0}
                                         value={areaValue}
                                         onChange={e => setAreaValue(e.target.value)}
                                         placeholder="Nhập diện tích..."
-                                        className="flex-1 px-4 py-3.5 bg-slate-50/50 border border-slate-200/80 rounded-2xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300"
+                                        className="w-full px-4 py-3.5 bg-slate-50/50 border border-slate-200/80 rounded-2xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 pr-[110px]"
                                     />
-                                    {/* Unit toggle */}
-                                    <div className="flex bg-slate-100/80 rounded-2xl p-1 gap-0.5 border border-slate-200/50">
+                                    <div className="absolute right-1.5 flex bg-slate-100/80 rounded-xl p-1 gap-0.5 border border-slate-200/50">
                                         {(['m2', 'ha'] as AreaUnit[]).map(unit => (
                                             <button
                                                 key={unit}
@@ -1015,7 +1014,7 @@ const GardenProfileTab: React.FC<GardenProfileTabProps> = ({ deviceId, devices, 
                                                     }
                                                     setAreaUnit(unit);
                                                 }}
-                                                className={`px-4 py-1.5 rounded-xl text-sm font-bold tracking-tight transition-all duration-300 active:scale-95 ${areaUnit === unit
+                                                className={`px-3 py-1 rounded-lg text-xs font-bold tracking-tight transition-all duration-300 active:scale-95 ${areaUnit === unit
                                                     ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/50'
                                                     : 'text-slate-500 hover:text-slate-700'
                                                     } `}
@@ -1386,7 +1385,7 @@ export const GardenConfigPage: React.FC = () => {
     const controlMutation = useMutation({
         mutationFn: ({ controlType, action }: { controlType: 'PUMP' | 'LED' | 'SYSTEM', action: 'ON' | 'OFF' | 'TOGGLE' }) =>
             deviceApi.sendControlCommand(deviceId!, controlType, action),
-        onSuccess: () => {},
+        onSuccess: () => { },
         onError: () => toast.error('Lỗi khi điều khiển thiết bị'),
     });
 

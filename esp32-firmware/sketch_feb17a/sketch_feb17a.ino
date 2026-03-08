@@ -1784,8 +1784,10 @@ void serialTask(void *pvParameters) {
         lineLen = 0;
 
         // --- Parse lệnh ---
-        char cmd[20], arg1[20], arg2[20];
-        int n = sscanf(lineBuf, "%19s %19s %19s", cmd, arg1, arg2);
+        char cmd[20], arg1[20], arg2[20], arg3[20], arg4[20], arg5[20], arg6[20], arg7[20];
+        arg2[0]=arg3[0]=arg4[0]=arg5[0]=arg6[0]=arg7[0]='\0';
+        int n = sscanf(lineBuf, "%19s %19s %19s %19s %19s %19s %19s %19s",
+                       cmd, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 
         if (strcasecmp(cmd, "help") == 0) {
           Serial.println("--- DEV MODE Commands ---");
@@ -1802,6 +1804,8 @@ void serialTask(void *pvParameters) {
           Serial.println("  preset moist       - S1=55 S2=55 Rain=0 Tmp=25 Hum=70 Lux=300");
           Serial.println("  preset wet         - S1=85 S2=85 Rain=60 Tmp=22 Hum=90 Lux=100");
           Serial.println("  preset rain        - S1=40 S2=40 Rain=80 Tmp=22 Hum=95 Lux=50");
+          Serial.println("  preset manual <s1> <s2> <rain> <tmp> <hum> <lux>  - gia tri tuy bien");
+          Serial.println("    vi du: preset manual 20 25 5 30.5 65 600");
           Serial.println("--- Other ---");
           Serial.println("  status             - in sensor hiện tại");
 
@@ -1869,8 +1873,23 @@ void serialTask(void *pvParameters) {
               devMode.soil1=40; devMode.soil2=40; devMode.rain=80;
               devMode.temp=22.0f; devMode.hum=95.0f; devMode.lux=50.0f;
               Serial.println("[DEV] Preset: RAINING");
+            } else if (strcasecmp(arg1, "manual") == 0) {
+              // preset manual <soil1> <soil2> <rain> <temp> <hum> <lux>
+              if (n >= 8) {
+                devMode.soil1 = constrain(atoi(arg2),  0, 100);
+                devMode.soil2 = constrain(atoi(arg3),  0, 100);
+                devMode.rain  = constrain(atoi(arg4),  0, 100);
+                devMode.temp  = constrain(atof(arg5), -10.0f, 60.0f);
+                devMode.hum   = constrain(atof(arg6),  0.0f, 100.0f);
+                devMode.lux   = constrain(atof(arg7),  0.0f, 100000.0f);
+                Serial.printf("[DEV] Preset MANUAL: S1=%d%% S2=%d%% Rain=%d%% Tmp=%.1fC Hum=%.0f%% Lux=%.0f\n",
+                  devMode.soil1, devMode.soil2, devMode.rain, devMode.temp, devMode.hum, devMode.lux);
+              } else {
+                Serial.println("[DEV] Usage: preset manual <soil1> <soil2> <rain> <temp> <hum> <lux>");
+                Serial.println("[DEV]   vi du: preset manual 20 25 5 30.5 65 600");
+              }
             } else {
-              Serial.println("[DEV] Presets: dry | moist | wet | rain");
+              Serial.println("[DEV] Presets: dry | moist | wet | rain | manual");
             }
             xSemaphoreGive(devModeMutex);
           }

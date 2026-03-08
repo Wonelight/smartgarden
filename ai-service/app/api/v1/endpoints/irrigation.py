@@ -11,6 +11,8 @@ from app.models.irrigation import (
     AiPredictResponse,
     AiTrainRequest,
     AiTrainResponse,
+    TrainBatchRequest,
+    TrainBatchResponse,
 )
 from app.services.anfis_service import AnfisStubService
 
@@ -38,3 +40,13 @@ async def train(request: AiTrainRequest):
     """
     logger.info("Train request device=%s epochs=%s", request.device_id, request.epochs)
     return anfis_service.train(request)
+
+
+@router.post("/train-batch", response_model=TrainBatchResponse, summary="Batch Training")
+async def train_batch(request: TrainBatchRequest):
+    """
+    Nhận labeled training samples từ BatchJobServiceImpl.executeWeeklyTrainingJob().
+    Xây dựng DataFrame, retrain XGBoost/RF, lưu model mới.
+    """
+    logger.info("Train-batch request: %d samples", request.n_samples)
+    return anfis_service.train_batch(request)

@@ -12,6 +12,7 @@ import com.example.smart_garden.entity.enums.PredictionType;
 import com.example.smart_garden.exception.AppException;
 import com.example.smart_garden.exception.ErrorCode;
 import com.example.smart_garden.repository.*;
+import com.example.smart_garden.repository.SensorDataHourlyRepository;
 import com.example.smart_garden.dto.waterbalance.request.UpdateWaterBalanceStateRequest;
 import com.example.smart_garden.dto.waterbalance.response.WaterBalanceStateResponse;
 import com.example.smart_garden.event.SystemLogPublisher;
@@ -25,6 +26,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.ResourceAccessException;
@@ -60,11 +63,13 @@ public class AiPredictionServiceImpl implements AiPredictionService {
     private final WeatherDataRepository weatherDataRepository;
     private final CropSeasonRepository cropSeasonRepository;
     private final DailyWeatherForecastRepository dailyWeatherForecastRepository;
+    private final SensorDataHourlyRepository sensorDataHourlyRepository;
     private final AgroPhysicsService agroPhysicsService;
     private final WaterBalanceStateService waterBalanceStateService;
     private final ObjectMapper objectMapper;
     private final com.example.smart_garden.mqtt.MqttCommandSender mqttCommandSender;
     private final SystemLogPublisher sysLog;
+    private final com.example.smart_garden.repository.UserRepository userRepository;
 
     /** Dev flag: bỏ qua Decision Window để test ngoài giờ tưới (set false trước deploy). */
     @Value("${app.dev.bypass-time-gate:false}")
@@ -83,6 +88,21 @@ public class AiPredictionServiceImpl implements AiPredictionService {
         // 1. Validate device
         Device device = deviceRepository.findById(request.deviceId())
                 .orElseThrow(() -> new AppException(ErrorCode.DEVICE_NOT_FOUND));
+
+        // 1a. Ownership check — chỉ áp dụng cho REST calls (có auth context).
+        //     Batch job / scheduler chạy không có user → bỏ qua.
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAuthenticatedUser = auth != null
+                && auth.isAuthenticated()
+                && !"anonymousUser".equals(auth.getPrincipal());
+        if (isAuthenticatedUser) {
+            com.example.smart_garden.entity.User caller = userRepository
+                    .findByUsername(auth.getName())
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            if (device.getUser() == null || !device.getUser().getId().equals(caller.getId())) {
+                throw new AppException(ErrorCode.ACCESS_DENIED, "Device does not belong to you");
+            }
+        }
 
         // 2. Check AI enabled
         IrrigationConfig config = irrigationConfigRepository.findByDeviceId(request.deviceId())
@@ -617,27 +637,41 @@ public class AiPredictionServiceImpl implements AiPredictionService {
                 : (weather.get("wind_speed") != null ? (Double) weather.get("wind_speed") : 2.0);
         weather.put("wind_rolling_24h", windRolling24h);
 
-        // Light 24h & Rain History (from sensors)
-        List<SensorData> sensorHistory = sensorDataRepository
-                .findByDeviceIdAndTimestampBetween(device.getId(), now.minusDays(7), now); // Get 7 days to find last
-                                                                                           // rain
+        // Light 24h & Rain History — dùng sensor_data_hourly (Job 3) để tối ưu.
+        // Thay thế 7-day raw scan (2000+ records) bằng 168 hourly records.
+        LocalDateTime lightWindowStart = now.minusHours(24);
+        LocalDateTime rainWindowStart  = now.minusDays(7);
+
+        List<SensorDataHourly> hourlyHistory = sensorDataHourlyRepository
+                .findByDeviceIdAndHourStartBetweenOrderByHourStartDesc(
+                        device.getId(), rainWindowStart, now);
 
         double lightSum24h = 0;
-        Integer hoursSinceLastRain = 72; // Default to 3 days if no rain found
+        int hoursSinceLastRain = 72; // Default: 3 ngày nếu không có mưa
 
-        for (SensorData s : sensorHistory) {
-            // Light 24h
-            if (s.getTimestamp().isAfter(yesterday)) {
-                if (s.getLightIntensity() != null) {
-                    lightSum24h += s.getLightIntensity();
+        for (SensorDataHourly h : hourlyHistory) {
+            // Light: cộng dồn avgLightIntensity trong 24h gần nhất
+            if (h.getHourStart().isAfter(lightWindowStart) && h.getAvgLightIntensity() != null) {
+                lightSum24h += h.getAvgLightIntensity();
+            }
+            // Rain: tìm giờ mưa gần nhất trong 7 ngày qua
+            if (h.getRainDetectedCount() != null && h.getRainDetectedCount() > 0) {
+                int hoursAgo = (int) ChronoUnit.HOURS.between(h.getHourStart(), now);
+                if (hoursAgo < hoursSinceLastRain) {
+                    hoursSinceLastRain = hoursAgo;
                 }
             }
+        }
 
-            // Check Rain age (looking back up to 7 days)
+        // Bridge: Job 3 lag ~1h (chỉ aggregate giờ trước), kiểm tra thêm raw 2h gần nhất
+        // để không bỏ sót mưa trong giờ hiện tại chưa được aggregate.
+        List<SensorData> recentRaw = sensorDataRepository
+                .findByDeviceIdAndTimestampBetween(device.getId(), now.minusHours(2), now);
+        for (SensorData s : recentRaw) {
             if (Boolean.TRUE.equals(s.getRainDetected())) {
-                long hoursAgo = ChronoUnit.HOURS.between(s.getTimestamp(), now);
+                int hoursAgo = (int) ChronoUnit.HOURS.between(s.getTimestamp(), now);
                 if (hoursAgo < hoursSinceLastRain) {
-                    hoursSinceLastRain = (int) hoursAgo;
+                    hoursSinceLastRain = hoursAgo;
                 }
             }
         }

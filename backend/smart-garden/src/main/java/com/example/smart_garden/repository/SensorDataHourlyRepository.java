@@ -26,4 +26,9 @@ public interface SensorDataHourlyRepository extends JpaRepository<SensorDataHour
      * Xóa dữ liệu hourly cũ hơn cutoff.
      */
     void deleteByHourStartBefore(LocalDateTime cutoff);
+
+    /**
+     * Lấy tối đa 1000 record cũ nhất trước cutoff — dùng cho batch delete.
+     */
+    List<SensorDataHourly> findTop1000ByHourStartBeforeOrderByHourStartAsc(LocalDateTime cutoff);
 }

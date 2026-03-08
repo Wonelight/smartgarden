@@ -147,6 +147,22 @@ class WaterBalanceSnapshot(BaseModel):
     etc_rolling_24h: Optional[float] = None
 
 
+# ── Pump config ──────────────────────────────────────────
+
+class PumpPayload(BaseModel):
+    """Cấu hình máy bơm và vườn — gửi từ backend khi trigger predict."""
+    pump_flow_rate_lpm: float = Field(0.5, description="Lưu lượng bơm (L/min mỗi vòi)")
+    nozzle_count: int = Field(1, description="Số vòi phun")
+    garden_area_m2: float = Field(1.0, description="Diện tích vườn (m²)")
+
+    def flow_rate_mm_per_sec(self) -> float:
+        """
+        Quy đổi lưu lượng bơm sang mm/s trên diện tích vườn.
+        flow_rate_mm/s = (pump_flow_rate_lpm × nozzle_count / 60) / garden_area_m2
+        """
+        return (self.pump_flow_rate_lpm * self.nozzle_count / 60.0) / max(self.garden_area_m2, 0.01)
+
+
 # ── Requests ────────────────────────────────────────────
 
 class AiPredictRequest(BaseModel):
@@ -163,7 +179,7 @@ class AiPredictRequest(BaseModel):
         None,
         description="Snapshot state từ backend. Có thì AI stateless, không cần GET/PUT state.",
     )
-    pump: Optional['PumpPayload'] = Field(
+    pump: Optional[PumpPayload] = Field(
         None,
         description="Cấu hình máy bơm và vườn, dùng để tính flow_rate_mm_per_sec động.",
     )
@@ -217,3 +233,31 @@ class AiTrainResponse(BaseModel):
     accuracy: float = Field(ge=0, le=1)
     status: str = "completed"
     trained_params: Optional[Dict[str, Any]] = None
+
+
+class TrainingSample(BaseModel):
+    """Một dòng dữ liệu huấn luyện: features tại thời điểm dự đoán + nhãn thực tế."""
+    features: Dict[str, Any]
+    actual_depletion_mm: float
+    device_id: Optional[int] = None
+    prediction_id: Optional[int] = None
+    label_source: str = "unknown"  # "actual_irrigation" | "proxy_model"
+
+
+class TrainBatchRequest(BaseModel):
+    """Payload từ BatchJobServiceImpl.executeWeeklyTrainingJob()."""
+    samples: List[TrainingSample]
+    n_samples: int
+
+
+class TrainBatchResponse(BaseModel):
+    """Kết quả retrain gửi về backend."""
+    status: str
+    n_samples: int
+    n_actual: int          # số mẫu có label thực tế
+    n_proxy: int           # số mẫu dùng proxy label
+    r2: Optional[float] = None
+    mae: Optional[float] = None
+    cv_r2_mean: Optional[float] = None
+    model_path: Optional[str] = None
+    message: str = ""

@@ -34,4 +34,19 @@ public interface BatchJobService {
      * @return The saved DailyWaterBalance record
      */
     DailyWaterBalance processSeason(CropSeason season, WeatherData weather);
+
+    /**
+     * Weekly batch: collect labeled training samples from MlPrediction + IrrigationHistory,
+     * then POST to /ai/train-batch if enough new samples are available.
+     *
+     * Runs Sunday 2:10 AM — after Job 4 (2:30 AM cleanup) has cleared stale data
+     * but before the week's predict cycle.
+     *
+     * Logic:
+     *   1. Scan MlPrediction records from [7, 14] days ago that have featuresUsed (real features)
+     *   2. For each, look up IrrigationHistory within +2h window → actual water_mm applied
+     *   3. If no irrigation found, use predictedDepl24h as proxy label
+     *   4. Only retrain when >= MIN_TRAINING_SAMPLES new rows assembled
+     */
+    void executeWeeklyTrainingJob();
 }

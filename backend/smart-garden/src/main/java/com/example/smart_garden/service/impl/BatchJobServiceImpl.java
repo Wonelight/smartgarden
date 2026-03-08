@@ -6,12 +6,16 @@ import com.example.smart_garden.entity.enums.DeviceStatus;
 import com.example.smart_garden.dto.ai.request.AiPredictRequest;
 import com.example.smart_garden.repository.CropSeasonRepository;
 import com.example.smart_garden.repository.DailyWaterBalanceRepository;
+import com.example.smart_garden.repository.IrrigationHistoryRepository;
+import com.example.smart_garden.repository.MlPredictionRepository;
 import com.example.smart_garden.repository.SensorDataHourlyRepository;
 import com.example.smart_garden.repository.SensorDataRepository;
 import com.example.smart_garden.repository.WeatherDataRepository;
 import com.example.smart_garden.service.AgroPhysicsService;
 import com.example.smart_garden.service.AiPredictionService;
 import com.example.smart_garden.service.BatchJobService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -44,6 +48,11 @@ public class BatchJobServiceImpl implements BatchJobService {
     private final SensorDataRepository sensorDataRepository;
     private final SensorDataHourlyRepository sensorDataHourlyRepository;
     private final AiPredictionService aiPredictionService;
+    private final IrrigationHistoryRepository irrigationHistoryRepository;
+    private final MlPredictionRepository mlPredictionRepository;
+    private final com.example.smart_garden.config.AiServiceProperties aiServiceProperties;
+    private final org.springframework.web.client.RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     /** Raw sensor data giữ lại (ngày). Sau đó chỉ còn hourly. */
     private static final int RAW_DATA_RETENTION_DAYS = 7;
@@ -51,16 +60,23 @@ public class BatchJobServiceImpl implements BatchJobService {
     private static final int HOURLY_DATA_RETENTION_DAYS = 180;
     /** Batch size cho delete operations. */
     private static final int DELETE_BATCH_SIZE = 1000;
+    /** Số mẫu training tối thiểu để trigger retrain. */
+    private static final int MIN_TRAINING_SAMPLES = 50;
+    /** Cửa sổ quét MlPrediction cho training (ngày). */
+    private static final int TRAINING_SCAN_DAYS_FROM = 14;
+    private static final int TRAINING_SCAN_DAYS_TO   = 7;
+    /** Cửa sổ thời gian tìm IrrigationHistory sau prediction (phút). */
+    private static final int IRRIGATION_MATCH_WINDOW_MINUTES = 120;
 
     // ================================================================
     // JOB 1: Daily Water Balance (existing — unchanged)
     // ================================================================
 
     /**
-     * Scheduled daily at 6:00 AM.
+     * Scheduled daily at 6:05 AM (sau Job 2 chạy lúc 6:00 để tránh race condition).
      */
     @Override
-    @Scheduled(cron = "0 0 6 * * ?")
+    @Scheduled(cron = "0 5 6 * * ?")
     @Transactional
     public void executeDailyWaterBalanceJob() {
         log.info("========== DAILY WATER BALANCE JOB STARTED ==========");
@@ -139,8 +155,16 @@ public class BatchJobServiceImpl implements BatchJobService {
             prevDC = prevBalance.get().getDcValue() != null ? prevBalance.get().getDcValue() : 0.0;
         }
 
-        // 7. Get yesterday's irrigation amount (if any — from irrigation history)
-        double irrigationAmount = 0.0; // TODO: integrate with IrrigationHistory
+        // 7. Get yesterday's irrigation amount from IrrigationHistory
+        LocalDateTime yesterdayStart2 = today.minusDays(1).atStartOfDay();
+        LocalDateTime todayStart = today.atStartOfDay();
+        List<com.example.smart_garden.entity.IrrigationHistory> yesterdayIrrigations =
+                irrigationHistoryRepository.findByDeviceIdAndStartTimeBetween(
+                        device.getId(), yesterdayStart2, todayStart);
+        double irrigationAmount = yesterdayIrrigations.stream()
+                .filter(h -> h.getWaterVolume() != null)
+                .mapToDouble(h -> h.getWaterVolume().doubleValue())
+                .sum();
 
         // 8. Calculate today's depletion
         double dc = agroPhysicsService.calculateDailyDepletion(prevDC, etc, effectiveRain, irrigationAmount);
@@ -171,9 +195,14 @@ public class BatchJobServiceImpl implements BatchJobService {
 
         balance = dailyWaterBalanceRepository.save(balance);
 
-        log.info("Season #{} (device={}, crop={}): age={}d, ET₀={:.2f}, Kc={:.3f}, ETc={:.2f}, DC={:.2f}mm, rec='{}'",
+        log.info("Season #{} (device={}, crop={}): age={}d, ET0={:.2f} Kc={} ETc={} DC={}mm rec='{}'",
                 season.getId(), device.getDeviceCode(), crop.getName(),
-                plantAge, et0, kc, etc, dc, recommendation);
+                plantAge,
+                String.format("%.2f", et0),
+                String.format("%.3f", kc),
+                String.format("%.2f", etc),
+                String.format("%.2f", dc),
+                recommendation);
 
         return balance;
     }
@@ -401,12 +430,138 @@ public class BatchJobServiceImpl implements BatchJobService {
             }
         } while (batch == DELETE_BATCH_SIZE);
 
-        // 2. Cleanup hourly sensor_data_hourly > 180 days
+        // 2. Cleanup hourly sensor_data_hourly > 180 days (batch to avoid long table lock)
         LocalDateTime hourlyCutoff = LocalDateTime.now().minusDays(HOURLY_DATA_RETENTION_DAYS);
-        sensorDataHourlyRepository.deleteByHourStartBefore(hourlyCutoff);
+        int totalHourlyDeleted = 0;
+        int hourlyBatch;
+        do {
+            List<Long> ids = sensorDataHourlyRepository
+                    .findTop1000ByHourStartBeforeOrderByHourStartAsc(hourlyCutoff)
+                    .stream().map(SensorDataHourly::getId).collect(Collectors.toList());
+            if (ids.isEmpty()) break;
+            sensorDataHourlyRepository.deleteAllByIdInBatch(ids);
+            totalHourlyDeleted += ids.size();
+            hourlyBatch = ids.size();
+        } while (hourlyBatch == DELETE_BATCH_SIZE);
 
-        log.info("🗑️ DATA RETENTION CLEANUP COMPLETE: deleted {} raw records (>{} days), hourly cutoff={}",
-                totalRawDeleted, RAW_DATA_RETENTION_DAYS, hourlyCutoff);
+        log.info("🗑️ DATA RETENTION CLEANUP COMPLETE: deleted {} raw records (>{} days), deleted {} hourly records (>{} days)",
+                totalRawDeleted, RAW_DATA_RETENTION_DAYS, totalHourlyDeleted, HOURLY_DATA_RETENTION_DAYS);
+    }
+
+    // ================================================================
+    // JOB 5: Weekly Model Training
+    // ================================================================
+
+    /**
+     * Chạy hàng tuần vào Chủ nhật 2:10 AM.
+     *
+     * Pipeline:
+     *   1. Quét MlPrediction cũ [7-14 ngày] có featuresUsed (features thực)
+     *   2. Với mỗi prediction, tìm IrrigationHistory trong +2h tiếp theo:
+     *      → label = waterVolume (L) / gardenArea (m²) × 1000 = mm thực tế đã tưới
+     *   3. Nếu không có irrigation → label = predictedDepl24h (proxy: model báo thiếu)
+     *   4. Đủ MIN_TRAINING_SAMPLES? → POST /ai/train-batch → Python retrain
+     */
+    @Override
+    @Scheduled(cron = "0 10 2 * * SUN")
+    @Transactional(readOnly = true)
+    public void executeWeeklyTrainingJob() {
+        log.info("========== WEEKLY TRAINING JOB STARTED ==========");
+
+        LocalDateTime scanFrom = LocalDateTime.now().minusDays(TRAINING_SCAN_DAYS_FROM);
+        LocalDateTime scanTo   = LocalDateTime.now().minusDays(TRAINING_SCAN_DAYS_TO);
+
+        List<MlPrediction> candidates = mlPredictionRepository.findTrainablePredictions(scanFrom, scanTo);
+        log.info("Found {} trainable MlPrediction records in [{}, {}]", candidates.size(), scanFrom, scanTo);
+
+        if (candidates.isEmpty()) {
+            log.info("No trainable predictions found. Skipping training.");
+            return;
+        }
+
+        // ── Build training samples ──────────────────────────────────────
+        List<Map<String, Object>> samples = new ArrayList<>();
+
+        for (MlPrediction pred : candidates) {
+            try {
+                // 1. Parse featuresUsed JSON
+                Map<String, Object> features = objectMapper.readValue(
+                        pred.getFeaturesUsed(), new TypeReference<>() {});
+
+                // 2. Determine label: actual mm from irrigation, or proxy from prediction
+                double labelMm;
+                Device device = pred.getDevice();
+                LocalDateTime predTime = pred.getCreatedAt();
+                LocalDateTime windowEnd = predTime.plusMinutes(IRRIGATION_MATCH_WINDOW_MINUTES);
+
+                List<IrrigationHistory> irrigations = irrigationHistoryRepository
+                        .findByDeviceIdAndStartTimeBetween(device.getId(), predTime, windowEnd);
+
+                if (!irrigations.isEmpty()) {
+                    // Tổng nước thực tế tưới trong cửa sổ
+                    double totalWaterVolumeLiters = irrigations.stream()
+                            .filter(h -> h.getWaterVolume() != null)
+                            .mapToDouble(h -> h.getWaterVolume().doubleValue())
+                            .sum();
+                    double gardenArea = device.getGardenArea() != null ? device.getGardenArea() : 1.0;
+                    // Chuyển L → mm: (L / m²) × 1000 → mm; 1 L/m² = 1 mm
+                    labelMm = totalWaterVolumeLiters / gardenArea;
+                } else {
+                    // Proxy label: mô hình báo cần bao nhiêu mm
+                    labelMm = pred.getPredictedDepl24h() != null ? pred.getPredictedDepl24h() : 0.0;
+                }
+
+                // Bỏ qua mẫu label = 0 và không có irrigation (nhiễu)
+                if (labelMm <= 0.0 && irrigations.isEmpty()) {
+                    continue;
+                }
+
+                Map<String, Object> sample = new LinkedHashMap<>();
+                sample.put("features", features);
+                sample.put("actual_depletion_mm", labelMm);
+                sample.put("device_id", device.getId());
+                sample.put("prediction_id", pred.getId());
+                sample.put("label_source", irrigations.isEmpty() ? "proxy_model" : "actual_irrigation");
+                samples.add(sample);
+
+            } catch (Exception e) {
+                log.warn("Skipping prediction #{} — failed to build sample: {}", pred.getId(), e.getMessage());
+            }
+        }
+
+        log.info("Built {} training samples ({} from actual irrigation, {} proxy)",
+                samples.size(),
+                samples.stream().filter(s -> "actual_irrigation".equals(s.get("label_source"))).count(),
+                samples.stream().filter(s -> "proxy_model".equals(s.get("label_source"))).count());
+
+        // ── Check threshold ──────────────────────────────────────────
+        if (samples.size() < MIN_TRAINING_SAMPLES) {
+            log.info("Only {} samples < MIN_TRAINING_SAMPLES ({}). Skipping retrain this week.",
+                    samples.size(), MIN_TRAINING_SAMPLES);
+            return;
+        }
+
+        // ── POST to ai-service /ai/train-batch ───────────────────────
+        try {
+            Map<String, Object> trainPayload = new LinkedHashMap<>();
+            trainPayload.put("samples", samples);
+            trainPayload.put("n_samples", samples.size());
+
+            String url = aiServiceProperties.getUrl() + "/ai/train-batch";
+            log.info("Sending {} training samples to {}", samples.size(), url);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.postForObject(url, trainPayload, Map.class);
+
+            if (response != null) {
+                log.info("========== WEEKLY TRAINING JOB COMPLETE: r2={}, mae={}, n_samples={} ==========",
+                        response.get("r2"), response.get("mae"), response.get("n_samples"));
+            } else {
+                log.warn("Training response was null — ai-service may have failed silently");
+            }
+        } catch (Exception e) {
+            log.error("Weekly training job failed when calling ai-service: {}", e.getMessage(), e);
+        }
     }
 
     // ================================================================
