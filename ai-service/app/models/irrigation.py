@@ -155,13 +155,17 @@ class AiPredictRequest(BaseModel):
     Bao gồm: sensors, openweather, crop context; optional water_balance snapshot (stateless).
     """
     device_id: int
-    sensor_data_id: int
+    sensor_data_id: Optional[int] = None
     sensors: SensorPayload
     openweather: Optional[OpenWeatherPayload] = None
     crop: Optional[CropPayload] = None
     water_balance: Optional[WaterBalanceSnapshot] = Field(
         None,
         description="Snapshot state từ backend. Có thì AI stateless, không cần GET/PUT state.",
+    )
+    pump: Optional['PumpPayload'] = Field(
+        None,
+        description="Cấu hình máy bơm và vườn, dùng để tính flow_rate_mm_per_sec động.",
     )
 
 
@@ -175,6 +179,22 @@ class AiTrainRequest(BaseModel):
 
 # ── Responses ───────────────────────────────────────────
 
+
+class UpdatedWaterBalance(BaseModel):
+    """
+    Water balance state đã được tính toán lại sau prediction.
+    Backend persist field này vào DB (single source of truth).
+    """
+    shallow_depletion: float
+    deep_depletion: float
+    shallow_taw: float
+    deep_taw: float
+    shallow_raw: float
+    deep_raw: float
+    last_irrigation: float = 0.0
+    soil_moist_history: Optional[List[Any]] = None
+
+
 class AiPredictResponse(BaseModel):
     """Response gửi về backend sau prediction."""
     device_id: int
@@ -184,6 +204,11 @@ class AiPredictResponse(BaseModel):
     confidence: float = Field(ge=0, le=1, description="Model confidence score")
     accuracy: Optional[float] = None
     ai_params: Optional[Dict[str, Any]] = None
+    # Water balance state đã được cập nhật — backend dùng để persist vào DB
+    updated_water_balance: Optional[UpdatedWaterBalance] = Field(
+        None,
+        description="Updated water balance state after prediction — backend persists this to DB.",
+    )
 
 
 class AiTrainResponse(BaseModel):

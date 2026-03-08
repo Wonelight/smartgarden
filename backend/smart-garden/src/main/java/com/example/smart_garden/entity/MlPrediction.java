@@ -52,14 +52,39 @@ public class MlPrediction extends BaseEntity {
         @Column(name = "features_used", columnDefinition = "json")
         private String featuresUsed;
 
-        @Column(name = "anfis_output")
-        private Float anfisOutput;
+        @Column(name = "ai_output")
+        private Float aiOutput;
 
-        @Column(name = "anfis_params", columnDefinition = "json")
-        private String anfisParams;
+        @Column(name = "ai_params", columnDefinition = "json")
+        private String aiParams;
 
-        @Column(name = "anfis_accuracy")
-        private Float anfisAccuracy;
+        @Column(name = "ai_accuracy")
+        private Float aiAccuracy;
+
+        // ===== New Expanded ML Features =====
+        @Column(name = "etc")
+        private Float etc;
+
+        @Column(name = "raw_value")
+        private Float raw;
+
+        @Column(name = "deep_soil_moisture")
+        private Float soilMoistDeep;
+
+        @Column(name = "shallow_soil_moisture")
+        private Float soilMoistShallow;
+
+        @Column(name = "predicted_depl_24h")
+        private Float predictedDepl24h;
+
+        @Column(name = "soil_moist_deficit")
+        private Float soilMoistDeficit;
+
+        @Column(name = "soil_moist_trend_1h")
+        private Float soilMoistTrend1h;
+
+        @Column(name = "water_mm")
+        private Float waterMm;
 
         // ===== Agro-Physics inputs =====
 

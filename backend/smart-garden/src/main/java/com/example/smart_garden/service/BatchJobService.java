@@ -22,6 +22,11 @@ public interface BatchJobService {
     void executeDailyWaterBalanceJob();
 
     /**
+     * Hourly AI Prediction batch job.
+     */
+    void executeHourlyPredictionJob();
+
+    /**
      * Process a single CropSeason — calculate today's water balance.
      *
      * @param season  The active crop season to process

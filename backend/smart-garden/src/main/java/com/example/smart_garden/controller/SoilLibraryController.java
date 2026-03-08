@@ -57,4 +57,10 @@ public class SoilLibraryController {
         soilLibraryService.adminDeleteSoilLibrary(id);
         return ApiResponse.ok(null);
     }
+
+    @PreAuthorize("hasAnyRole(T(com.example.smart_garden.security.RbacRoles).ADMIN, T(com.example.smart_garden.security.RbacRoles).USER)")
+    @GetMapping("/soil-libraries")
+    public ApiResponse<List<SoilLibraryListItemResponse>> getAllSoilLibraries() {
+        return ApiResponse.ok(soilLibraryService.adminGetAllSoilLibraries());
+    }
 }

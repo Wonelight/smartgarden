@@ -11,12 +11,21 @@ from app.models.irrigation import (
     AiPredictResponse,
     AiTrainRequest,
     AiTrainResponse,
+    UpdatedWaterBalance,
 )
 from app.services.preprocessing_service import PreprocessingService
 from app.services.prediction_service import PredictionService, water_mm_to_duration_seconds
 from app.services.water_balance import water_balance_store
+from app.services.fao_service import (
+    FaoService,
+    SHALLOW_LAYER_RATIO,
+    DEEP_LAYER_RATIO,
+    INFILTRATION_SHALLOW_RATIO,
+)
 
 logger = logging.getLogger(__name__)
+
+_fao = FaoService()
 
 
 class AnfisStubService:
@@ -35,6 +44,7 @@ class AnfisStubService:
         1. Preprocess request → DataFrame with engineered features
         2. ML predict → depletion_24h → irrigation_mm + confidence
         3. Post-process: convert to duration
+        4. Build updated_water_balance for backend to persist
         """
         # 1. Preprocess
         features_df = self.preprocessor.transform(request)
@@ -50,8 +60,13 @@ class AnfisStubService:
         # Clamp
         water_mm = max(0.0, min(20.0, water_mm))
 
-        # Convert mm → duration (seconds)
-        duration = water_mm_to_duration_seconds(water_mm)
+        # Convert mm → duration: dùng flow_rate từ pump config nếu có
+        if request.pump is not None:
+            flow_rate = request.pump.flow_rate_mm_per_sec()
+        else:
+            from app.services.prediction_service import DEFAULT_FLOW_RATE_MM_PER_SEC
+            flow_rate = DEFAULT_FLOW_RATE_MM_PER_SEC
+        duration = water_mm_to_duration_seconds(water_mm, flow_rate)
         refined_duration = max(0, duration - 10)  # 10s buffer
 
         logger.info(
@@ -60,6 +75,9 @@ class AnfisStubService:
             request.device_id, predicted_depl_24h, water_mm, duration,
             confidence, soil_deficit,
         )
+
+        # 4. Build updated_water_balance — backend persists this to DB
+        updated_wb = self._build_updated_water_balance(request, row, water_mm)
 
         return AiPredictResponse(
             device_id=request.device_id,
@@ -82,6 +100,82 @@ class AnfisStubService:
                     "water_mm": round(water_mm, 2),
                 },
             },
+            updated_water_balance=updated_wb,
+        )
+
+    # ── Helper: build updated_water_balance ────────────────────
+
+    def _build_updated_water_balance(
+        self,
+        request: AiPredictRequest,
+        row,
+        water_mm: float,
+    ) -> UpdatedWaterBalance:
+        """
+        Tính toán water balance state sau prediction để backend persist.
+        Dùng lại snapshot từ request (nếu có) hoặc giá trị mặc định loam.
+        Thêm water_mm vào last_irrigation để phản ánh lần tưới này.
+        """
+        c = request.crop
+        wb_snap = request.water_balance
+
+        # Lấy crop params (với fallback loam)
+        fc = c.field_capacity if c and c.field_capacity is not None else 30.0
+        wp = c.wilting_point if c and c.wilting_point is not None else 15.0
+        root_depth = c.root_depth if c and c.root_depth is not None else 0.3
+        depletion_frac = c.depletion_fraction if c and c.depletion_fraction is not None else 0.5
+
+        # Tính TAW/RAW đa tầng từ crop + soil info
+        (shallow_taw, deep_taw,
+         shallow_raw, deep_raw, _, _) = _fao.calculate_multi_layer(
+            fc, wp, root_depth, depletion_frac,
+        )
+
+        # Lấy depletion hiện tại (từ snapshot nếu có, hoặc ước tính từ soil_moist_deficit)
+        if wb_snap is not None:
+            shallow_depletion = wb_snap.shallow_depletion
+            deep_depletion = wb_snap.deep_depletion
+        else:
+            soil_deficit = float(row.get("soil_moist_deficit", 0))
+            shallow_depletion = max(0.0, soil_deficit * shallow_taw / max(fc, 1))
+            deep_depletion = max(0.0, soil_deficit * deep_taw / max(fc, 1))
+
+        # ETc giờ hiện tại đã tính trong preprocessing
+        etc_h = float(row.get("etc", 0.0))
+
+        # Infiltration ratio
+        inf_shallow = INFILTRATION_SHALLOW_RATIO
+        if c and c.infiltration_shallow_ratio is not None:
+            inf_shallow = max(0.2, min(0.9, float(c.infiltration_shallow_ratio)))
+        inf_deep = 1.0 - inf_shallow
+
+        # Áp dụng nước tưới (water_mm) theo từng tầng
+        irr_shallow = water_mm * inf_shallow
+        irr_deep = water_mm * inf_deep
+
+        # Cập nhật depletion sau ETc và tưới
+        new_shallow = max(0.0, min(shallow_taw,
+            shallow_depletion + etc_h * SHALLOW_LAYER_RATIO - irr_shallow))
+        new_deep = max(0.0, min(deep_taw,
+            deep_depletion + etc_h * DEEP_LAYER_RATIO - irr_deep))
+
+        logger.debug(
+            "UpdatedWB device=%s: sh_taw=%.2f dp_taw=%.2f "
+            "sh_depl %.2f→%.2f dp_depl %.2f→%.2f irr_sh=%.2f irr_dp=%.2f",
+            request.device_id, shallow_taw, deep_taw,
+            shallow_depletion, new_shallow,
+            deep_depletion, new_deep,
+            irr_shallow, irr_deep,
+        )
+
+        return UpdatedWaterBalance(
+            shallow_depletion=round(new_shallow, 4),
+            deep_depletion=round(new_deep, 4),
+            shallow_taw=round(shallow_taw, 4),
+            deep_taw=round(deep_taw, 4),
+            shallow_raw=round(shallow_raw, 4),
+            deep_raw=round(deep_raw, 4),
+            last_irrigation=round(water_mm, 4),
         )
 
     def train(self, request: AiTrainRequest) -> AiTrainResponse:

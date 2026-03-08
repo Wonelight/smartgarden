@@ -63,6 +63,15 @@ public class Device extends BaseEntity {
         @Column(name = "altitude")
         private Double altitude;
 
+        @Column(name = "garden_area")
+        private Double gardenArea;
+
+        @Column(name = "default_crop_id")
+        private Long defaultCropId;
+
+        @Column(name = "default_soil_id")
+        private Long defaultSoilId;
+
         // Relationships
 
         @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, orphanRemoval = true)

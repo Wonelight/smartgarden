@@ -52,6 +52,11 @@ export const cropApi = {
         return response.data.data ?? [];
     },
 
+    getAllCropLibraries: async (): Promise<CropLibraryListItem[]> => {
+        const response = await apiClient.get<ApiResponse<CropLibraryListItem[]>>('/crop-libraries');
+        return response.data.data ?? [];
+    },
+
     adminGetCropLibraryById: async (id: number): Promise<CropLibraryDetail> => {
         const response = await apiClient.get<ApiResponse<CropLibraryDetail>>(`/admin/crop-libraries/${id}`);
         return response.data.data;

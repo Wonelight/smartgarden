@@ -239,7 +239,7 @@ export const DevicesPage: React.FC = () => {
     // UI State
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
-    const [lastFetch, setLastFetch] = useState<Date>(new Date());
+
 
     // Modal State
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -652,8 +652,8 @@ export const DevicesPage: React.FC = () => {
                                         duration={1500}
                                         label={
                                             createDeviceMutation.isPending ? 'Đang tạo thiết bị...' :
-                                            updateDeviceMutation.isPending ? 'Đang cập nhật thiết bị...' :
-                                            'Đang xóa thiết bị...'
+                                                updateDeviceMutation.isPending ? 'Đang cập nhật thiết bị...' :
+                                                    'Đang xóa thiết bị...'
                                         }
                                     />
                                 </div>
@@ -676,13 +676,13 @@ export const DevicesPage: React.FC = () => {
                             <h3 className="text-lg font-semibold text-slate-800">
                                 {showCreateModal ? 'Thêm thiết bị mới' : 'Cập nhật thiết bị'}
                             </h3>
-                            <button 
-                                onClick={() => { 
-                                    setShowCreateModal(false); 
-                                    setShowEditModal(false); 
+                            <button
+                                onClick={() => {
+                                    setShowCreateModal(false);
+                                    setShowEditModal(false);
                                     setFormData({});
                                     setFormErrors({});
-                                }} 
+                                }}
                                 className="p-1 text-slate-400 hover:text-slate-600"
                             >
                                 <X className="w-5 h-5" />
@@ -698,11 +698,10 @@ export const DevicesPage: React.FC = () => {
                                         onChange={e => handleFieldChange('deviceCode', e.target.value)}
                                         onBlur={e => handleFieldBlur('deviceCode', e.target.value)}
                                         placeholder="VD: SG-ESP32-005"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.deviceCode 
-                                                ? 'border-red-300 focus:border-red-400' 
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.deviceCode
+                                                ? 'border-red-300 focus:border-red-400'
                                                 : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                            }`}
                                     />
                                     {formErrors.deviceCode && (
                                         <p className="mt-1 text-xs text-red-600">{formErrors.deviceCode}</p>
@@ -717,11 +716,10 @@ export const DevicesPage: React.FC = () => {
                                     onChange={e => handleFieldChange('deviceName', e.target.value)}
                                     onBlur={e => handleFieldBlur('deviceName', e.target.value)}
                                     placeholder="VD: ESP32-Garden-03"
-                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                        formErrors.deviceName 
-                                            ? 'border-red-300 focus:border-red-400' 
+                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.deviceName
+                                            ? 'border-red-300 focus:border-red-400'
                                             : 'border-slate-200 focus:border-teal-400'
-                                    }`}
+                                        }`}
                                 />
                                 {formErrors.deviceName && (
                                     <p className="mt-1 text-xs text-red-600">{formErrors.deviceName}</p>
@@ -735,11 +733,10 @@ export const DevicesPage: React.FC = () => {
                                     onChange={e => handleFieldChange('location', e.target.value)}
                                     onBlur={e => handleFieldBlur('location', e.target.value)}
                                     placeholder="VD: Hanoi"
-                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                        formErrors.location 
-                                            ? 'border-red-300 focus:border-red-400' 
+                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.location
+                                            ? 'border-red-300 focus:border-red-400'
                                             : 'border-slate-200 focus:border-teal-400'
-                                    }`}
+                                        }`}
                                 />
                                 {formErrors.location && (
                                     <p className="mt-1 text-xs text-red-600">{formErrors.location}</p>
@@ -757,11 +754,10 @@ export const DevicesPage: React.FC = () => {
                                         onChange={e => handleFieldChange('latitude', e.target.value ? parseFloat(e.target.value) : '')}
                                         onBlur={e => handleFieldBlur('latitude', e.target.value ? parseFloat(e.target.value) : '')}
                                         placeholder="21.0285"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.latitude 
-                                                ? 'border-red-300 focus:border-red-400' 
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.latitude
+                                                ? 'border-red-300 focus:border-red-400'
                                                 : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                            }`}
                                     />
                                     {formErrors.latitude && (
                                         <p className="mt-1 text-xs text-red-600">{formErrors.latitude}</p>
@@ -776,11 +772,10 @@ export const DevicesPage: React.FC = () => {
                                         onChange={e => handleFieldChange('longitude', e.target.value ? parseFloat(e.target.value) : '')}
                                         onBlur={e => handleFieldBlur('longitude', e.target.value ? parseFloat(e.target.value) : '')}
                                         placeholder="105.8542"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.longitude 
-                                                ? 'border-red-300 focus:border-red-400' 
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.longitude
+                                                ? 'border-red-300 focus:border-red-400'
                                                 : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                            }`}
                                     />
                                     {formErrors.longitude && (
                                         <p className="mt-1 text-xs text-red-600">{formErrors.longitude}</p>
@@ -795,11 +790,10 @@ export const DevicesPage: React.FC = () => {
                                         onChange={e => handleFieldChange('altitude', e.target.value ? parseFloat(e.target.value) : '')}
                                         onBlur={e => handleFieldBlur('altitude', e.target.value ? parseFloat(e.target.value) : '')}
                                         placeholder="10"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.altitude 
-                                                ? 'border-red-300 focus:border-red-400' 
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.altitude
+                                                ? 'border-red-300 focus:border-red-400'
                                                 : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                            }`}
                                     />
                                     {formErrors.altitude && (
                                         <p className="mt-1 text-xs text-red-600">{formErrors.altitude}</p>
@@ -815,11 +809,10 @@ export const DevicesPage: React.FC = () => {
                                     onChange={e => handleFieldChange('userId', e.target.value ? parseInt(e.target.value) : '')}
                                     onBlur={e => handleFieldBlur('userId', e.target.value ? parseInt(e.target.value) : '')}
                                     placeholder="VD: 1"
-                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                        formErrors.userId 
-                                            ? 'border-red-300 focus:border-red-400' 
+                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.userId
+                                            ? 'border-red-300 focus:border-red-400'
                                             : 'border-slate-200 focus:border-teal-400'
-                                    }`}
+                                        }`}
                                 />
                                 {formErrors.userId ? (
                                     <p className="mt-1 text-xs text-red-600">{formErrors.userId}</p>
@@ -837,13 +830,13 @@ export const DevicesPage: React.FC = () => {
                             </div>
                         )}
                         <div className="flex gap-3 mt-6">
-                            <button 
-                                onClick={() => { 
-                                    setShowCreateModal(false); 
-                                    setShowEditModal(false); 
+                            <button
+                                onClick={() => {
+                                    setShowCreateModal(false);
+                                    setShowEditModal(false);
                                     setFormData({});
                                     setFormErrors({});
-                                }} 
+                                }}
                                 disabled={createDeviceMutation.isPending || updateDeviceMutation.isPending}
                                 className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >

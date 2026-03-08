@@ -1,0 +1,18 @@
+﻿
+> smart-garden-frontend@0.0.0 build
+> tsc -b && vite build
+
+src/components/dashboard/IrrigationChart.tsx(76,29): error TS2322: Type '(value: number | undefined, name: string) => [string, string]' is not assignable to type 'Formatter<number, string> & ((value: number, name: string, item: Payload<number, string>, index: number, payload: Payload<number, string>[]) => ReactNode | [...])'.
+  Type '(value: number | undefined, name: string) => [string, string]' is not assignable to type 'Formatter<number, string>'.
+    Types of parameters 'name' and 'name' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/hooks/useOptimisticMutation.ts(43,46): error TS2554: Expected 2 arguments, but got 1.
+src/hooks/useOptimisticMutation.ts(58,17): error TS2554: Expected 4 arguments, but got 3.
+src/hooks/useOptimisticMutation.ts(71,17): error TS2554: Expected 4 arguments, but got 3.
+src/hooks/useOptimisticMutation.ts(79,17): error TS2554: Expected 5 arguments, but got 4.
+src/mocks/smartGardenMocks.ts(307,34): error TS6133: 'deviceId' is declared but its value is never read.
+src/mocks/smartGardenMocks.ts(488,52): error TS6133: 'i' is declared but its value is never read.
+src/mocks/smartGardenMocks.ts(497,44): error TS6133: 'i' is declared but its value is never read.
+src/mocks/smartGardenMocks.ts(506,46): error TS6133: 'i' is declared but its value is never read.
+src/mocks/smartGardenMocks.ts(515,44): error TS6133: 'i' is declared but its value is never read.

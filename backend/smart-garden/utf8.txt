@@ -1,0 +1,14 @@
+﻿[ERROR] COMPILATION ERROR : 
+[ERROR] /D:/DoAn_Garden/smart_garden/backend/smart-garden/src/main/java/com/example/smart_garden/service/impl/CropSeasonServiceImpl.java:[79,18] cannot find symbol
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile (default-compile) on project smart-garden: Compilation failure
+[ERROR] /D:/DoAn_Garden/smart_garden/backend/smart-garden/src/main/java/com/example/smart_garden/service/impl/CropSeasonServiceImpl.java:[79,18] cannot find symbol
+[ERROR]   symbol:   method setExpectedEndDate(java.time.LocalDate)
+[ERROR]   location: variable newSeason of type com.example.smart_garden.entity.CropSeason
+[ERROR] 
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

@@ -30,8 +30,10 @@ public interface DeviceService {
 
     /**
      * Kết nối vườn với thiết bị ESP32 bằng địa chỉ MAC.
-     * ESP32 dùng MAC (sau chuẩn hóa) làm device_code cho MQTT. Nếu thiết bị chưa có trong hệ thống
-     * thì tạo device mới gán cho user hiện tại; nếu đã có và thuộc user khác thì báo lỗi.
+     * ESP32 dùng MAC (sau chuẩn hóa) làm device_code cho MQTT. Nếu thiết bị chưa có
+     * trong hệ thống
+     * thì tạo device mới gán cho user hiện tại; nếu đã có và thuộc user khác thì
+     * báo lỗi.
      *
      * @return Thông tin device đã kết nối (đã có sẵn hoặc mới tạo).
      */
@@ -39,7 +41,8 @@ public interface DeviceService {
 
     /**
      * Ngắt kết nối thiết bị khỏi tài khoản hiện tại (set user_id = null).
-     * Thiết bị vẫn tồn tại trong hệ thống, có thể được kết nối lại bởi user khác hoặc chính user sau này.
+     * Thiết bị vẫn tồn tại trong hệ thống, có thể được kết nối lại bởi user khác
+     * hoặc chính user sau này.
      */
     void disconnectMyDevice(Long id);
 
@@ -79,6 +82,8 @@ public interface DeviceService {
     /**
      * Cập nhật trạng thái device theo deviceCode (từ MQTT: status, heartbeat, LWT).
      * Nếu status = ONLINE thì lastOnline = now.
+     * Cập nhật vị trí dự phòng từ status payload (nếu có).
      */
-    void updateStatusByDeviceCode(String deviceCode, DeviceStatus status);
+    void updateStatusByDeviceCode(String deviceCode, DeviceStatus status,
+            com.example.smart_garden.mqtt.payload.MqttStatusPayload payload);
 }

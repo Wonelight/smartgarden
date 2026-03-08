@@ -47,11 +47,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(ApiPaths.AUTH_ALL).permitAll()
                         .requestMatchers(ApiPaths.USERS_REGISTER_PERMIT).permitAll()
-                        // Khi server.servlet.context-path=/api, path tới filter có thể là /users/register (không có prefix /api)
+                        // Khi server.servlet.context-path=/api, path tới filter có thể là
+                        // /users/register (không có prefix /api)
                         .requestMatchers("/users/register").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                         .permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll() // WebSocket STOMP endpoint
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/debug/**").authenticated() // Debug endpoint - requires authentication
                         .requestMatchers(ApiPaths.ADMIN_ALL).hasRole(RbacRoles.ADMIN)

@@ -8,15 +8,16 @@ import java.time.LocalDateTime;
  * Item danh sách device cho admin (thấy thêm owner).
  */
 public record AdminDeviceListItemResponse(
-        Long id,
-        String deviceCode,
-        String deviceName,
-        String location,
-        DeviceStatus status,
-        String firmwareVersion,
-        LocalDateTime lastOnline,
-        Long userId,
-        String username
-) {
+                Long id,
+                String deviceCode,
+                String deviceName,
+                String location,
+                Double latitude,
+                Double longitude,
+                Double altitude,
+                DeviceStatus status,
+                String firmwareVersion,
+                LocalDateTime lastOnline,
+                Long userId,
+                String username) {
 }
-

@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 /**
- * Payload sensor MCU → Backend. Map với SensorData entity (device nhận diện qua topic deviceCode).
+ * Payload sensor MCU → Backend. Map với SensorData entity (device nhận diện qua
+ * topic deviceCode).
  */
 @Data
 @Builder
@@ -18,14 +19,16 @@ import java.time.Instant;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MqttSensorPayload {
 
-    private Float soilMoisture;   // soil1 %
-    private Float soilMoisture2;  // soil2 %
+    private Float soilMoisture; // soil1 %
+    private Float soilMoisture2; // soil2 %
     private Float temperature;
     private Float humidity;
     private Float lightIntensity; // lux
     private Boolean rainDetected;
+    private Float rainIntensity;
     private Float ambientLight;
     private Boolean pumpState;
+    private Boolean lightState;
     /** Unix ms */
     private Long ts;
 

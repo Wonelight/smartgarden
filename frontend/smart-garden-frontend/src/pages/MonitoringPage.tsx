@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
     Droplets, Thermometer, Wind, Sun, Activity, Clock,
-    TrendingUp, TrendingDown, RefreshCw, Gauge, CloudSun, MapPin, Loader2, ChevronDown
+    TrendingUp, TrendingDown, RefreshCw, Gauge, CloudSun, MapPin, Loader2, ChevronDown, CloudRain, Lightbulb, Settings2
 } from 'lucide-react';
 import { DeviceMap } from '../components/DeviceMap';
 import * as Select from '@radix-ui/react-select';
@@ -11,6 +11,7 @@ import {
     ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 import * as Tabs from '@radix-ui/react-tabs';
+import * as Switch from '@radix-ui/react-switch';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mockUserDevices } from '../mocks/smartGardenMocks';
 import type { MonitoringSensorData } from '../types/dashboard';
@@ -22,6 +23,7 @@ import { useAuth } from '../hooks/useAuth';
 import { isAdmin as checkIsAdmin } from '../utils/roleUtils';
 import { deviceApi } from '../api/device';
 import { useMonitoringDevice } from '../contexts/MonitoringDeviceContext';
+import { useDeviceSocket, type SensorEvent } from '../hooks/useDeviceSocket';
 
 // ============================================
 // TIME RANGE OPTIONS
@@ -46,24 +48,31 @@ const SensorSummaryCard: React.FC<{
     unit: string;
     icon: React.ReactNode;
     iconBg: string;
+    bgGradient?: string;
     trend?: { value: number; isUp: boolean };
-}> = ({ title, value, unit, icon, iconBg, trend }) => (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-start justify-between mb-3">
-            <div className={`p-2.5 rounded-xl ${iconBg}`}>
-                {icon}
+}> = ({ title, value, unit, icon, iconBg, bgGradient = "from-white/60 to-slate-50/20", trend }) => (
+    <div className="group relative bg-white/40 backdrop-blur-md rounded-2xl p-5 border border-white shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:-translate-y-1 transition-all duration-300 ease-out overflow-hidden">
+        {/* Subtle background gradient and glowing effect */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${bgGradient} z-0 pointer-events-none`} />
+        <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${iconBg} opacity-20 blur-2xl group-hover:opacity-40 transition-opacity duration-500`} />
+
+        <div className="relative z-10">
+            <div className="flex items-start justify-between mb-4">
+                <div className={`p-3 rounded-2xl ${iconBg} text-current shadow-sm ring-1 ring-black/5`}>
+                    {icon}
+                </div>
+                {trend && (
+                    <span className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full ${trend.isUp ? 'text-emerald-700 bg-emerald-100/80 ring-1 ring-emerald-200' : 'text-rose-700 bg-rose-100/80 ring-1 ring-rose-200'}`}>
+                        {trend.isUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                        {trend.value}%
+                    </span>
+                )}
             </div>
-            {trend && (
-                <span className={`flex items-center gap-1 text-xs font-medium ${trend.isUp ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {trend.isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {trend.value}%
-                </span>
-            )}
-        </div>
-        <p className="text-sm text-slate-500 font-medium">{title}</p>
-        <div className="flex items-baseline gap-1 mt-1">
-            <span className="text-2xl font-bold text-slate-800">{value}</span>
-            <span className="text-sm text-slate-400">{unit}</span>
+            <p className="text-sm text-slate-500 font-medium tracking-wide mb-1.5">{title}</p>
+            <div className="flex items-baseline gap-1.5">
+                <span className="text-3xl font-bold bg-gradient-to-br from-slate-900 to-slate-700 bg-clip-text text-transparent tracking-tight">{value}</span>
+                <span className="text-sm font-medium text-slate-400">{unit}</span>
+            </div>
         </div>
     </div>
 );
@@ -81,44 +90,53 @@ const SensorChart: React.FC<{
     unit: string;
     icon: React.ReactNode;
 }> = ({ title, data, dataKey, color, gradientId, unit, icon }) => (
-    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-            {icon}
-            <h3 className="font-semibold text-slate-700">{title}</h3>
-            <span className="text-xs text-slate-400 ml-auto">({unit})</span>
+    <div className="bg-white/70 backdrop-blur-md rounded-2xl p-5 border border-white shadow-[0_4px_24px_rgba(0,0,0,0.02)] group hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300">
+        <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-xl bg-slate-50 ring-1 ring-slate-100 shadow-sm">
+                {icon}
+            </div>
+            <h3 className="font-semibold text-slate-800 tracking-tight text-lg">{title}</h3>
+            <span className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-md ml-auto ring-1 ring-slate-200/50">{unit}</span>
         </div>
-        <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+        <ResponsiveContainer width="100%" height={240}>
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                 <defs>
                     <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color} stopOpacity={0.2} />
+                        <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                        <stop offset="60%" stopColor={color} stopOpacity={0.05} />
                         <stop offset="95%" stopColor={color} stopOpacity={0} />
                     </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="4 4" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} tickLine={false} axisLine={false} dy={10} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} tickLine={false} axisLine={false} dx={-10} />
                 <Tooltip
                     contentStyle={{
-                        backgroundColor: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                        fontSize: '13px'
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        borderRadius: '16px',
+                        boxShadow: '0 10px 40px -10px rgba(0,0,0,0.1)',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                        padding: '12px 16px'
                     }}
+                    itemStyle={{ color: '#0f172a' }}
+                    cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }}
                     formatter={(value: number | undefined) => {
                         if (value === undefined) return ['', title];
-                        return [value.toFixed(1) + ' ' + unit, title];
+                        return [<span className="font-bold text-slate-900">{value.toFixed(1)} {unit}</span>, <span className="text-slate-500 font-medium">{title}</span>];
                     }}
                 />
                 <Area
                     type="monotone"
                     dataKey={dataKey}
                     stroke={color}
-                    strokeWidth={2}
+                    strokeWidth={3}
                     fill={`url(#${gradientId})`}
                     dot={false}
-                    activeDot={{ r: 4, fill: color }}
+                    activeDot={{ r: 6, fill: color, stroke: '#fff', strokeWidth: 2, className: 'drop-shadow-md' }}
                 />
             </AreaChart>
         </ResponsiveContainer>
@@ -213,6 +231,45 @@ export const MonitoringPage: React.FC = () => {
 
     const deviceIdForSensor = selectedDeviceId ?? (userDevices.length > 0 ? userDevices[0].id : null);
     const currentDevice = userDevices.find((d) => d.id === selectedDeviceId) ?? userDevices[0] ?? null;
+    const currentDeviceCode = currentDevice?.deviceCode ?? null;
+
+    // ---- Optimistic UI States & Spam Prevention ----
+    const [optimisticPump, setOptimisticPump] = useState<boolean | null>(null);
+    const [optimisticLight, setOptimisticLight] = useState<boolean | null>(null);
+    const pumpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // ---- WebSocket: real-time sensor updates ----
+    const [liveSensor, setLiveSensor] = useState<SensorEvent | null>(null);
+
+    const handleSensorWs = useCallback((data: SensorEvent) => {
+        setLiveSensor(data);
+        setOptimisticPump(null);
+        setOptimisticLight(null);
+    }, []);
+
+    const handleStatusWs = useCallback((data: any) => {
+        if (data.pumpState !== undefined || data.lightState !== undefined) {
+            setLiveSensor(prev => {
+                if (!prev) return { pumpState: data.pumpState, lightState: data.lightState };
+                return {
+                    ...prev,
+                    pumpState: data.pumpState !== undefined ? data.pumpState : prev.pumpState,
+                    lightState: data.lightState !== undefined ? data.lightState : prev.lightState
+                };
+            });
+            setOptimisticPump(null);
+            setOptimisticLight(null);
+        }
+    }, []);
+
+    const { isConnected: wsConnected } = useDeviceSocket({
+        deviceCode: currentDeviceCode,
+        onSensorData: handleSensorWs,
+        onStatusChange: handleStatusWs,
+        enabled: !!deviceIdForSensor,
+        wsUrl: 'ws://localhost:8081/api/ws',
+    });
 
     // Fetch monitored locations for weather widget button
     const { data: locations = {}, isLoading: loadingLocations } = useQuery({
@@ -230,6 +287,15 @@ export const MonitoringPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['weatherForecast'] });
         },
         onError: () => toast.error('Lỗi khi cập nhật thời tiết'),
+    });
+
+    const controlMutation = useMutation({
+        mutationFn: ({ controlType, action }: { controlType: 'PUMP' | 'LED' | 'SYSTEM', action: 'ON' | 'OFF' | 'TOGGLE' }) =>
+            deviceApi.sendControlCommand(deviceIdForSensor!, controlType, action),
+        onSuccess: () => {
+            toast.success('Điều khiển thành công!');
+        },
+        onError: () => toast.error('Lỗi khi điều khiển'),
     });
 
     const locationCount = Object.keys(locations).length;
@@ -288,6 +354,7 @@ export const MonitoringPage: React.FC = () => {
         queryFn: () => sensorApi.getLatestByDeviceId(deviceIdForSensor!),
         enabled: !!deviceIdForSensor,
         staleTime: 30 * 1000,
+        refetchInterval: wsConnected ? 60000 : 15000,  // WS connected → giảm polling
         refetchOnWindowFocus: false,
     });
 
@@ -305,14 +372,16 @@ export const MonitoringPage: React.FC = () => {
             }));
     }, [sensorRange]);
 
-    const currentSensor = sensorLatest
-        ? {
-            soilMoisture: sensorLatest.soilMoisture ?? 0,
-            temperature: sensorLatest.temperature ?? 0,
-            humidity: sensorLatest.humidity ?? 0,
-            lightIntensity: sensorLatest.lightIntensity ?? 0,
-        }
-        : { soilMoisture: 0, temperature: 0, humidity: 0, lightIntensity: 0 };
+    const currentSensor = {
+        soilMoisture: liveSensor?.soilMoisture ?? sensorLatest?.soilMoisture ?? 0,
+        soilMoisture2: liveSensor?.soilMoisture2 ?? (sensorLatest as any)?.soilMoisture2 ?? 0,
+        temperature: liveSensor?.temperature ?? sensorLatest?.temperature ?? 0,
+        humidity: liveSensor?.humidity ?? sensorLatest?.humidity ?? 0,
+        lightIntensity: liveSensor?.lightIntensity ?? sensorLatest?.lightIntensity ?? 0,
+        rainIntensity: liveSensor?.rainIntensity ?? (sensorLatest as any)?.rainIntensity ?? 0,
+        pumpState: optimisticPump !== null ? optimisticPump : (liveSensor?.pumpState ?? (sensorLatest as any)?.pumpState ?? false),
+        lightState: optimisticLight !== null ? optimisticLight : (liveSensor?.lightState ?? (sensorLatest as any)?.lightState ?? false),
+    };
 
     const n = filteredData.length || 1;
     const avgSoil = (filteredData.reduce((s, d) => s + d.soilMoisture, 0) / n).toFixed(1);
@@ -321,29 +390,50 @@ export const MonitoringPage: React.FC = () => {
     const avgLight = Math.round(filteredData.reduce((s, d) => s + d.lightIntensity, 0) / n);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
             {/* ============================================ */}
             {/* PAGE HEADER SECTION */}
             {/* ============================================ */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="relative overflow-hidden bg-white rounded-3xl p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-8">
+                {/* Decorative background blurs */}
+                <div className="absolute -right-20 -top-20 w-64 h-64 bg-cyan-100/40 rounded-full blur-[80px] pointer-events-none" />
+                <div className="absolute right-40 -bottom-20 w-64 h-64 bg-emerald-100/40 rounded-full blur-[80px] pointer-events-none" />
+
+                <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 z-10">
                     <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">Giám sát</h1>
-                        <p className="text-slate-500 mt-1">
-                            Theo dõi dữ liệu cảm biến theo thời gian thực
+                        <h1 className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tight">
+                            Monitoring
+                        </h1>
+                        <p className="text-slate-500 mt-2 text-base max-w-lg leading-relaxed">
+                            Bảng điều khiển theo dõi thông số IoT và thời tiết trực tiếp từ các vườn thông minh của bạn.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                         {/* Real-time indicator */}
-                        <span className="flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                        <div className={`flex items-center gap-2.5 px-4 py-2 rounded-2xl border backdrop-blur-sm ${currentDevice?.status === 'ONLINE'
+                            ? 'bg-emerald-50/80 border-emerald-100 text-emerald-700'
+                            : 'bg-rose-50/80 border-rose-100 text-rose-700'
+                            }`}>
+                            <div className="relative flex h-2.5 w-2.5">
+                                {(currentDevice?.status === 'ONLINE' && wsConnected) && (
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                                )}
+                                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${currentDevice?.status === 'ONLINE' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'
+                                    }`} />
+                            </div>
+                            <span className="text-sm font-semibold tracking-wide uppercase">
+                                {currentDevice?.status === 'ONLINE' ? (wsConnected ? 'LIVE SYNC' : 'ONLINE') : 'OFFLINE'}
                             </span>
-                            Real-time
-                        </span>
-                        <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors">
-                            <RefreshCw className="w-4 h-4" />
+                        </div>
+                        <button
+                            onClick={() => {
+                                queryClient.invalidateQueries({ queryKey: ['sensorLatest'] });
+                                queryClient.invalidateQueries({ queryKey: ['sensorRange'] });
+                                queryClient.invalidateQueries({ queryKey: ['myDevices'] });
+                            }}
+                            className="group flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-300"
+                        >
+                            <RefreshCw className="w-4 h-4 text-slate-400 group-hover:text-slate-700 group-hover:rotate-180 transition-all duration-500" />
                             Làm mới
                         </button>
                     </div>
@@ -353,101 +443,123 @@ export const MonitoringPage: React.FC = () => {
             {/* ============================================ */}
             {/* TABS SECTION */}
             {/* ============================================ */}
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <Tabs.Root defaultValue="sensors">
-                    <div className="mb-6 pb-4 border-b border-slate-200">
-                        <Tabs.List className="flex gap-1 bg-white p-1 rounded-xl border border-slate-200 w-fit">
+            <div className="bg-white/40 backdrop-blur-3xl rounded-3xl p-6 border border-white shadow-[0_4px_30px_rgba(0,0,0,0.03)] selection:bg-cyan-100 selection:text-cyan-900 overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-tr from-slate-50/50 via-white/20 to-slate-100/50 pointer-events-none" />
+
+                <Tabs.Root defaultValue="sensors" className="relative z-10">
+                    <div className="mb-8 flex justify-center sm:justify-start">
+                        <Tabs.List className="flex inline-flex gap-2 bg-slate-900/5 p-1.5 rounded-2xl border border-slate-200/50 shadow-inner overflow-x-auto max-w-full no-scrollbar">
                             <Tabs.Trigger
                                 value="sensors"
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                                className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 hover:text-slate-900 group data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md data-[state=active]:shadow-blue-500/10 text-slate-500 hover:bg-white/50 whitespace-nowrap"
                             >
-                                <Gauge className="w-4 h-4" />
-                                Dữ liệu cảm biến
+                                <Gauge className="w-4 h-4 transition-transform group-hover:scale-110 group-data-[state=active]:scale-110" />
+                                Theo dõi
                             </Tabs.Trigger>
                             <Tabs.Trigger
                                 value="weather"
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                                className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 hover:text-slate-900 group data-[state=active]:bg-white data-[state=active]:text-cyan-600 data-[state=active]:shadow-md data-[state=active]:shadow-cyan-500/10 text-slate-500 hover:bg-white/50 whitespace-nowrap"
                             >
-                                <CloudSun className="w-4 h-4" />
-                                Dữ liệu thời tiết
+                                <CloudSun className="w-4 h-4 transition-transform group-hover:scale-110 group-data-[state=active]:scale-110" />
+                                Thời tiết
                             </Tabs.Trigger>
                             <Tabs.Trigger
                                 value="map"
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                                className="flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 hover:text-slate-900 group data-[state=active]:bg-white data-[state=active]:text-emerald-600 data-[state=active]:shadow-md data-[state=active]:shadow-emerald-500/10 text-slate-500 hover:bg-white/50 whitespace-nowrap"
                             >
-                                <MapPin className="w-4 h-4" />
+                                <MapPin className="w-4 h-4 transition-transform group-hover:scale-110 group-data-[state=active]:scale-110" />
                                 Bản đồ
                             </Tabs.Trigger>
                         </Tabs.List>
                     </div>
 
                     {/* Tab Content: Sensors */}
-                    <Tabs.Content value="sensors" className="space-y-6">
-                        <div className="bg-white rounded-xl p-6 border border-slate-100">
+                    <Tabs.Content value="sensors" className="space-y-8 outline-none animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="p-1">
                             {/* Time Range Selector */}
-                            <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 w-fit">
-                            <Clock className="w-4 h-4 text-slate-400 ml-2" />
-                            {Object.entries(timeRangeLabels).map(([key, label]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => setTimeRange(key as TimeRange)}
-                                    className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${timeRange === key
-                                        ? 'bg-teal-500 text-white shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                                        }`}
-                                >
-                                    {label}
-                                </button>
-                            ))}
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-1.5 bg-white/60 backdrop-blur-lg p-1.5 rounded-2xl border border-slate-200/60 shadow-sm w-fit">
+                                    <Clock className="w-4 h-4 text-slate-400 ml-2.5 mr-1" />
+                                    {Object.entries(timeRangeLabels).map(([key, label]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => setTimeRange(key as TimeRange)}
+                                            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${timeRange === key
+                                                ? 'bg-slate-800 text-white shadow-md shadow-slate-900/10'
+                                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'
+                                                }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Section Header */}
-                        <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 rounded-lg bg-blue-50">
-                            <Gauge className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-800">Dữ liệu cảm biến</h2>
-                            <p className="text-sm text-slate-500">Giá trị đo từ các cảm biến IoT trong vườn</p>
-                        </div>
-                        <span className="ml-auto text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
-                            Real-time
-                        </span>
-                        </div>
+                            {/* Section Header */}
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2 rounded-lg bg-blue-50">
+                                    <Gauge className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-800">Dữ liệu cảm biến</h2>
+                                    <p className="text-sm text-slate-500">Giá trị đo từ các cảm biến IoT trong vườn</p>
+                                </div>
+                                <span className="ml-auto text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
+                                    Real-time
+                                </span>
+                            </div>
 
-                        {/* Current Sensor Values Summary */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <SensorSummaryCard
-                        title="Độ ẩm đất"
-                        value={currentSensor.soilMoisture}
-                        unit="%"
-                        icon={<Droplets className="w-5 h-5 text-blue-500" />}
-                        iconBg="bg-blue-50"
-                    />
-                    <SensorSummaryCard
-                        title="Nhiệt độ (Cảm biến)"
-                        value={currentSensor.temperature}
-                        unit="°C"
-                        icon={<Thermometer className="w-5 h-5 text-orange-500" />}
-                        iconBg="bg-orange-50"
-                    />
-                    <SensorSummaryCard
-                        title="Độ ẩm không khí (Cảm biến)"
-                        value={currentSensor.humidity}
-                        unit="%"
-                        icon={<Wind className="w-5 h-5 text-cyan-500" />}
-                        iconBg="bg-cyan-50"
-                    />
-                    <SensorSummaryCard
-                        title="Cường độ ánh sáng"
-                        value={currentSensor.lightIntensity.toLocaleString()}
-                        unit="lux"
-                        icon={<Sun className="w-5 h-5 text-yellow-500" />}
-                        iconBg="bg-yellow-50"
-                    />
-                        </div>
+                            {/* Current Sensor Values Summary */}
+                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+                                <SensorSummaryCard
+                                    title="Đất (nông)"
+                                    value={currentSensor.soilMoisture}
+                                    unit="%"
+                                    icon={<Droplets className="w-5 h-5 text-blue-500" />}
+                                    iconBg="bg-blue-50"
+                                    bgGradient="from-blue-50/70 to-white/60"
+                                />
+                                <SensorSummaryCard
+                                    title="Đất (sâu)"
+                                    value={currentSensor.soilMoisture2}
+                                    unit="%"
+                                    icon={<Droplets className="w-5 h-5 text-cyan-600" />}
+                                    iconBg="bg-cyan-50"
+                                    bgGradient="from-cyan-50/70 to-white/60"
+                                />
+                                <SensorSummaryCard
+                                    title="Nhiệt độ"
+                                    value={currentSensor.temperature}
+                                    unit="°C"
+                                    icon={<Thermometer className="w-5 h-5 text-orange-500" />}
+                                    iconBg="bg-orange-50"
+                                    bgGradient="from-orange-50/70 to-white/60"
+                                />
+                                <SensorSummaryCard
+                                    title="Độ ẩm"
+                                    value={currentSensor.humidity}
+                                    unit="%"
+                                    icon={<Wind className="w-5 h-5 text-teal-500" />}
+                                    iconBg="bg-teal-50"
+                                    bgGradient="from-teal-50/70 to-white/60"
+                                />
+                                <SensorSummaryCard
+                                    title="Ánh sáng"
+                                    value={currentSensor.lightIntensity.toLocaleString()}
+                                    unit="lux"
+                                    icon={<Sun className="w-5 h-5 text-yellow-500" />}
+                                    iconBg="bg-yellow-50"
+                                    bgGradient="from-yellow-50/70 to-white/60"
+                                />
+                                <SensorSummaryCard
+                                    title="Mưa ngập"
+                                    value={currentSensor.rainIntensity}
+                                    unit="%"
+                                    icon={<CloudRain className="w-5 h-5 text-indigo-500" />}
+                                    iconBg="bg-indigo-50"
+                                    bgGradient="from-indigo-50/70 to-white/60"
+                                />
+                            </div>
 
                             {/* Sensor Averages Summary */}
                             <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 mb-6">
@@ -475,45 +587,45 @@ export const MonitoringPage: React.FC = () => {
                                 </div>
                             </div>
 
-                        {/* Sensor Charts Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <SensorChart
-                        title="Độ ẩm đất"
-                        data={filteredData}
-                        dataKey="soilMoisture"
-                        color="#3b82f6"
-                        gradientId="soilGrad"
-                        unit="%"
-                        icon={<Droplets className="w-5 h-5 text-blue-500" />}
-                    />
-                    <SensorChart
-                        title="Nhiệt độ (Cảm biến)"
-                        data={filteredData}
-                        dataKey="temperature"
-                        color="#f97316"
-                        gradientId="tempGrad"
-                        unit="°C"
-                        icon={<Thermometer className="w-5 h-5 text-orange-500" />}
-                    />
-                    <SensorChart
-                        title="Độ ẩm không khí (Cảm biến)"
-                        data={filteredData}
-                        dataKey="humidity"
-                        color="#06b6d4"
-                        gradientId="humidGrad"
-                        unit="%"
-                        icon={<Wind className="w-5 h-5 text-cyan-500" />}
-                    />
-                    <SensorChart
-                        title="Cường độ ánh sáng"
-                        data={filteredData}
-                        dataKey="lightIntensity"
-                        color="#eab308"
-                        gradientId="lightGrad"
-                        unit="lux"
-                        icon={<Sun className="w-5 h-5 text-yellow-500" />}
-                    />
-                    </div>
+                            {/* Sensor Charts Grid */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                <SensorChart
+                                    title="Độ ẩm đất"
+                                    data={filteredData}
+                                    dataKey="soilMoisture"
+                                    color="#3b82f6"
+                                    gradientId="soilGrad"
+                                    unit="%"
+                                    icon={<Droplets className="w-5 h-5 text-blue-500" />}
+                                />
+                                <SensorChart
+                                    title="Nhiệt độ (Cảm biến)"
+                                    data={filteredData}
+                                    dataKey="temperature"
+                                    color="#f97316"
+                                    gradientId="tempGrad"
+                                    unit="°C"
+                                    icon={<Thermometer className="w-5 h-5 text-orange-500" />}
+                                />
+                                <SensorChart
+                                    title="Độ ẩm không khí (Cảm biến)"
+                                    data={filteredData}
+                                    dataKey="humidity"
+                                    color="#06b6d4"
+                                    gradientId="humidGrad"
+                                    unit="%"
+                                    icon={<Wind className="w-5 h-5 text-cyan-500" />}
+                                />
+                                <SensorChart
+                                    title="Cường độ ánh sáng"
+                                    data={filteredData}
+                                    dataKey="lightIntensity"
+                                    color="#eab308"
+                                    gradientId="lightGrad"
+                                    unit="lux"
+                                    icon={<Sun className="w-5 h-5 text-yellow-500" />}
+                                />
+                            </div>
                         </div>
                     </Tabs.Content>
 
@@ -607,7 +719,7 @@ export const MonitoringPage: React.FC = () => {
                             <WeatherForecast
                                 location={currentDevice?.location ?? selectedCity}
                             />
-                            
+
                             {/* Demo Data Warning */}
                             {!selectedLocation && (
                                 <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -653,7 +765,7 @@ export const MonitoringPage: React.FC = () => {
                                     toast.info(`Đã chọn thiết bị: ${device.deviceName}`);
                                 }}
                             />
-                            
+
                             {/* Demo Data Warning */}
                             {(userDevices.length === 0 || !userDevices.some(d => d.latitude != null && d.longitude != null)) && (
                                 <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -670,6 +782,7 @@ export const MonitoringPage: React.FC = () => {
                             )}
                         </div>
                     </Tabs.Content>
+
                 </Tabs.Root>
             </div>
         </div>

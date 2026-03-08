@@ -4,6 +4,7 @@ import com.example.smart_garden.api.ApiPaths;
 import com.example.smart_garden.dto.common.ApiResponse;
 import com.example.smart_garden.dto.common.PageResponse;
 import com.example.smart_garden.dto.monitoring.response.SensorDataDetailResponse;
+import com.example.smart_garden.dto.monitoring.response.SensorDataHourlyResponse;
 import com.example.smart_garden.dto.monitoring.response.SensorDataListItemResponse;
 import com.example.smart_garden.service.SensorDataService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,13 @@ import java.util.List;
 
 /**
  * API dữ liệu cảm biến theo device.
+ *
+ * Endpoints:
+ * - GET /devices/{id}/sensor-data/latest — Latest raw data
+ * - GET /devices/{id}/sensor-data — Raw data (paginated)
+ * - GET /devices/{id}/sensor-data/range — Raw data in time range
+ * - GET /devices/{id}/sensor-data/hourly — Hourly aggregated data (for charts)
+ * - DELETE /devices/{id}/sensor-data — Delete old data
  */
 @RestController
 @RequestMapping(ApiPaths.BASE)
@@ -43,8 +51,7 @@ public class SensorDataController {
                 page.getTotalElements(),
                 page.getTotalPages(),
                 page.hasNext(),
-                page.hasPrevious()
-        );
+                page.hasPrevious());
         return ApiResponse.ok(response);
     }
 
@@ -54,6 +61,18 @@ public class SensorDataController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
         return ApiResponse.ok(sensorDataService.getByDeviceIdAndTimeRange(deviceId, startTime, endTime));
+    }
+
+    /**
+     * Dữ liệu sensor tổng hợp theo giờ (AVG/MIN/MAX).
+     * Dùng cho dashboard charts khi range > 24h — giảm ~360x lượng data.
+     */
+    @GetMapping(ApiPaths.SEG_DEVICE_SENSOR_DATA_HOURLY)
+    public ApiResponse<List<SensorDataHourlyResponse>> getHourlyByDeviceIdAndTimeRange(
+            @PathVariable Long deviceId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
+        return ApiResponse.ok(sensorDataService.getHourlyByDeviceIdAndTimeRange(deviceId, startTime, endTime));
     }
 
     @DeleteMapping(ApiPaths.SEG_DEVICE_SENSOR_DATA)

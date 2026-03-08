@@ -7,8 +7,6 @@ import type {
     DeviceStatus,
     IrrigationConfig,
     IrrigationHistory,
-    MLPrediction,
-    Schedule,
     MonitoringSensorData,
     FuzzyLogicResult,
     ScheduleDetail,
@@ -188,14 +186,10 @@ export const mockSensorHistory: MonitoringSensorData[] = generateSensorHistory()
 // IRRIGATION CONFIG
 // ============================================
 
-export const mockIrrigationConfig: IrrigationConfig = {
-    id: 1,
-    deviceId: 1,
-    autoMode: true,
-    fuzzyEnabled: true,
-    soilMoistureMin: 30,
-    soilMoistureMax: 70,
-    wateringDuration: 30,
+export const mockIrrigationConfigs: Record<number, IrrigationConfig> = {
+    1: { id: 1, deviceId: 1, autoMode: true, fuzzyEnabled: true, aiEnabled: true, soilMoistureMin: 35, soilMoistureMax: 70, wateringDuration: 120 },
+    2: { id: 2, deviceId: 2, autoMode: false, fuzzyEnabled: false, aiEnabled: false, soilMoistureMin: 40, soilMoistureMax: 65, wateringDuration: 60 },
+    3: { id: 3, deviceId: 3, autoMode: true, fuzzyEnabled: false, aiEnabled: false, soilMoistureMin: 30, soilMoistureMax: 60, wateringDuration: 90 },
 };
 
 // ============================================
@@ -262,16 +256,16 @@ export const mockScheduleDetails: ScheduleDetail[] = [
 // ============================================
 
 export const mockMLPredictions: MLPredictionDetail[] = [
-    { id: 1, deviceId: 1, predictedWaterAmount: 2.5, predictedTime: '2026-02-15T12:00:00+07:00', confidence: 0.92, createdAt: '2026-02-15T09:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.2', inputFeatures: { soilMoisture: 42, temperature: 28.5, humidity: 65, lightIntensity: 3200 } },
-    { id: 2, deviceId: 1, predictedWaterAmount: 1.8, predictedTime: '2026-02-15T18:00:00+07:00', confidence: 0.87, createdAt: '2026-02-15T09:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.2', inputFeatures: { soilMoisture: 38, temperature: 30.2, humidity: 58, lightIntensity: 5500 } },
-    { id: 3, deviceId: 1, predictedWaterAmount: 3.1, predictedTime: '2026-02-16T06:00:00+07:00', confidence: 0.78, createdAt: '2026-02-15T09:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.2', inputFeatures: { soilMoisture: 35, temperature: 26.0, humidity: 72, lightIntensity: 100 } },
-    { id: 4, deviceId: 1, predictedWaterAmount: 2.0, predictedTime: '2026-02-14T12:00:00+07:00', confidence: 0.91, createdAt: '2026-02-14T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.2', inputFeatures: { soilMoisture: 40, temperature: 29.0, humidity: 62, lightIntensity: 4800 } },
-    { id: 5, deviceId: 1, predictedWaterAmount: 1.5, predictedTime: '2026-02-14T18:00:00+07:00', confidence: 0.85, createdAt: '2026-02-14T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.2', inputFeatures: { soilMoisture: 45, temperature: 27.5, humidity: 68, lightIntensity: 2200 } },
-    { id: 6, deviceId: 1, predictedWaterAmount: 2.8, predictedTime: '2026-02-13T12:00:00+07:00', confidence: 0.89, createdAt: '2026-02-13T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.1', inputFeatures: { soilMoisture: 36, temperature: 31.0, humidity: 55, lightIntensity: 6500 } },
-    { id: 7, deviceId: 1, predictedWaterAmount: 0.8, predictedTime: '2026-02-13T18:00:00+07:00', confidence: 0.94, createdAt: '2026-02-13T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.1', inputFeatures: { soilMoisture: 55, temperature: 25.0, humidity: 75, lightIntensity: 800 } },
-    { id: 8, deviceId: 1, predictedWaterAmount: 2.3, predictedTime: '2026-02-12T12:00:00+07:00', confidence: 0.83, createdAt: '2026-02-12T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.1', inputFeatures: { soilMoisture: 39, temperature: 28.8, humidity: 63, lightIntensity: 4200 } },
-    { id: 9, deviceId: 1, predictedWaterAmount: 1.2, predictedTime: '2026-02-12T18:00:00+07:00', confidence: 0.90, createdAt: '2026-02-12T06:00:00+07:00', predictionType: 'IRRIGATION_TIME', modelVersion: 'ANFIS-v3.1', inputFeatures: { soilMoisture: 48, temperature: 26.5, humidity: 70, lightIntensity: 1500 } },
-    { id: 10, deviceId: 1, predictedWaterAmount: 3.5, predictedTime: '2026-02-11T12:00:00+07:00', confidence: 0.76, createdAt: '2026-02-11T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'ANFIS-v3.1', inputFeatures: { soilMoisture: 30, temperature: 32.5, humidity: 50, lightIntensity: 7800 } },
+    { id: 1, deviceId: 1, predictedWaterAmount: 2.5, predictedTime: '2026-02-15T12:00:00+07:00', confidence: 0.92, createdAt: '2026-02-15T09:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.2', inputFeatures: { soilMoisture: 42, temperature: 28.5, humidity: 65, lightIntensity: 3200 } },
+    { id: 2, deviceId: 1, predictedWaterAmount: 1.8, predictedTime: '2026-02-15T18:00:00+07:00', confidence: 0.87, createdAt: '2026-02-15T09:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.2', inputFeatures: { soilMoisture: 38, temperature: 30.2, humidity: 58, lightIntensity: 5500 } },
+    { id: 3, deviceId: 1, predictedWaterAmount: 3.1, predictedTime: '2026-02-16T06:00:00+07:00', confidence: 0.78, createdAt: '2026-02-15T09:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.2', inputFeatures: { soilMoisture: 35, temperature: 26.0, humidity: 72, lightIntensity: 100 } },
+    { id: 4, deviceId: 1, predictedWaterAmount: 2.0, predictedTime: '2026-02-14T12:00:00+07:00', confidence: 0.91, createdAt: '2026-02-14T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.2', inputFeatures: { soilMoisture: 40, temperature: 29.0, humidity: 62, lightIntensity: 4800 } },
+    { id: 5, deviceId: 1, predictedWaterAmount: 1.5, predictedTime: '2026-02-14T18:00:00+07:00', confidence: 0.85, createdAt: '2026-02-14T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.2', inputFeatures: { soilMoisture: 45, temperature: 27.5, humidity: 68, lightIntensity: 2200 } },
+    { id: 6, deviceId: 1, predictedWaterAmount: 2.8, predictedTime: '2026-02-13T12:00:00+07:00', confidence: 0.89, createdAt: '2026-02-13T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.1', inputFeatures: { soilMoisture: 36, temperature: 31.0, humidity: 55, lightIntensity: 6500 } },
+    { id: 7, deviceId: 1, predictedWaterAmount: 0.8, predictedTime: '2026-02-13T18:00:00+07:00', confidence: 0.94, createdAt: '2026-02-13T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.1', inputFeatures: { soilMoisture: 55, temperature: 25.0, humidity: 75, lightIntensity: 800 } },
+    { id: 8, deviceId: 1, predictedWaterAmount: 2.3, predictedTime: '2026-02-12T12:00:00+07:00', confidence: 0.83, createdAt: '2026-02-12T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.1', inputFeatures: { soilMoisture: 39, temperature: 28.8, humidity: 63, lightIntensity: 4200 } },
+    { id: 9, deviceId: 1, predictedWaterAmount: 1.2, predictedTime: '2026-02-12T18:00:00+07:00', confidence: 0.90, createdAt: '2026-02-12T06:00:00+07:00', predictionType: 'IRRIGATION_TIME', modelVersion: 'XGBoost-v3.1', inputFeatures: { soilMoisture: 48, temperature: 26.5, humidity: 70, lightIntensity: 1500 } },
+    { id: 10, deviceId: 1, predictedWaterAmount: 3.5, predictedTime: '2026-02-11T12:00:00+07:00', confidence: 0.76, createdAt: '2026-02-11T06:00:00+07:00', predictionType: 'WATER_AMOUNT', modelVersion: 'XGBoost-v3.1', inputFeatures: { soilMoisture: 30, temperature: 32.5, humidity: 50, lightIntensity: 7800 } },
 ];
 
 // ============================================
@@ -306,7 +300,7 @@ export const mockDeviceStatus: DeviceStatus = {
 // ============================================
 
 /** Lịch sử soil moisture / depletion cho biểu đồ (7 ngày gần nhất) */
-function generateSoilMoisHistory(deviceId: number): Array<Record<string, unknown>> {
+function generateSoilMoisHistory(_deviceId: number): Array<Record<string, unknown>> {
     const history: Array<Record<string, unknown>> = [];
     const baseDate = new Date('2026-02-09T06:00:00+07:00');
     let shallow = 12;
@@ -487,7 +481,7 @@ export const mockCurrentWeatherByLocation: Record<string, WeatherData> = {
 
 export const mockWeatherForecastByLocation: Record<string, DailyWeatherForecast[]> = {
     'Hà Nội': mockWeatherForecast,
-    'TP. Hồ Chí Minh': mockWeatherForecast.map((f, i) => ({
+    'TP. Hồ Chí Minh': mockWeatherForecast.map((f) => ({
         ...f,
         id: f.id + 10,
         location: 'TP. Hồ Chí Minh',
@@ -496,7 +490,7 @@ export const mockWeatherForecastByLocation: Record<string, DailyWeatherForecast[
         tempAvg: (f.tempAvg ?? 0) + 3,
         humidityAvg: (f.humidityAvg ?? 0) + 10,
     })),
-    'Đà Nẵng': mockWeatherForecast.map((f, i) => ({
+    'Đà Nẵng': mockWeatherForecast.map((f) => ({
         ...f,
         id: f.id + 20,
         location: 'Đà Nẵng',
@@ -505,7 +499,7 @@ export const mockWeatherForecastByLocation: Record<string, DailyWeatherForecast[
         tempAvg: (f.tempAvg ?? 0) + 1.5,
         humidityAvg: (f.humidityAvg ?? 0) + 5,
     })),
-    'Hải Phòng': mockWeatherForecast.map((f, i) => ({
+    'Hải Phòng': mockWeatherForecast.map((f) => ({
         ...f,
         id: f.id + 30,
         location: 'Hải Phòng',
@@ -514,7 +508,7 @@ export const mockWeatherForecastByLocation: Record<string, DailyWeatherForecast[
         tempAvg: (f.tempAvg ?? 0) - 0.8,
         humidityAvg: (f.humidityAvg ?? 0) + 8,
     })),
-    'Cần Thơ': mockWeatherForecast.map((f, i) => ({
+    'Cần Thơ': mockWeatherForecast.map((f) => ({
         ...f,
         id: f.id + 40,
         location: 'Cần Thơ',

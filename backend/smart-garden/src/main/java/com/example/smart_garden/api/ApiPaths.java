@@ -49,6 +49,7 @@ public final class ApiPaths {
     public static final String SEG_DEVICE_SENSOR_DATA = "/devices/{deviceId}/sensor-data";
     public static final String SEG_DEVICE_SENSOR_DATA_LATEST = SEG_DEVICE_SENSOR_DATA + "/latest";
     public static final String SEG_DEVICE_SENSOR_DATA_RANGE = SEG_DEVICE_SENSOR_DATA + "/range";
+    public static final String SEG_DEVICE_SENSOR_DATA_HOURLY = SEG_DEVICE_SENSOR_DATA + "/hourly";
     public static final String SEG_DEVICE_WATER_BALANCE_STATE = "/devices/{deviceId}/water-balance-state";
 
     // ---------- AI Service ----------
@@ -129,6 +130,19 @@ public final class ApiPaths {
     public static final String ADMIN_CROP_LIBRARY_ID = ADMIN_CROP_LIBRARIES + "/{id}";
     public static final String ADMIN_SOIL_LIBRARIES = ADMIN + "/soil-libraries";
     public static final String ADMIN_SOIL_LIBRARY_ID = ADMIN_SOIL_LIBRARIES + "/{id}";
+
+    // ---------- System Logs ----------
+    public static final String SEG_LOGS = "/logs";
+    public static final String SEG_ADMIN_LOGS = "/admin/logs";
+    public static final String LOGS = BASE + "/logs";
+    public static final String ADMIN_LOGS = ADMIN + "/logs";
+
+    // ---------- Notifications ----------
+    public static final String SEG_NOTIFICATIONS            = "/notifications";
+    public static final String SEG_NOTIFICATIONS_UNREAD_COUNT = "/notifications/unread-count";
+    public static final String SEG_NOTIFICATION_READ        = "/notifications/{id}/read";
+    public static final String SEG_NOTIFICATIONS_READ_ALL   = "/notifications/read-all";
+    public static final String NOTIFICATIONS                = BASE + "/notifications";
 
     // ---------- Security ----------
     /** Pattern cho mọi auth (login, ...) – permitAll. */

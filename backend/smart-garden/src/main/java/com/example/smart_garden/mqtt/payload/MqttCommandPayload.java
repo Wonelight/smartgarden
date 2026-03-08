@@ -31,5 +31,13 @@ public class MqttCommandPayload {
     @AllArgsConstructor
     public static class Params {
         private Integer setpoint;
+        /** Duration in seconds for IRRIGATE command (AI-predicted irrigation). */
+        private Integer duration;
+
+        /** Convenience constructor for setpoint-only commands. */
+        public Params(Integer setpoint) {
+            this.setpoint = setpoint;
+            this.duration = null;
+        }
     }
 }

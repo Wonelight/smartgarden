@@ -19,6 +19,14 @@ public class MqttStatusPayload {
     private Boolean online;
     private Boolean manualMode;
     private Boolean pumpState;
+    private Boolean lightState;
     private Integer setPoint;
     private Long ts;
+
+    // Auto location fallback
+    private Double geoLat;
+    private Double geoLng;
+    private String geoCity;
+    private String geoRegion;
+    private String geoCountry;
 }

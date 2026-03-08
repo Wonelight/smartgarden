@@ -77,7 +77,7 @@ export const SupportPage: React.FC = () => {
                     <p>
                         Smart Garden giúp bạn giám sát độ ẩm đất, nhiệt độ, ánh sáng và điều khiển tưới tự động
                         hoặc theo lịch. Ứng dụng kết nối với thiết bị ESP32 qua MQTT và hỗ trợ dự báo lượng nước
-                        bằng mô hình ML/ANFIS.
+                        bằng mô hình ML/AI.
                     </p>
                     <p>
                         Sử dụng menu bên trái để điều hướng: Dashboard (tổng quan), Cài đặt (thông báo & đơn vị),

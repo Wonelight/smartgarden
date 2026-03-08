@@ -55,4 +55,13 @@ public class AiServiceController {
             @PathVariable Long deviceId) {
         return ApiResponse.ok(aiPredictionService.getLatestResult(deviceId));
     }
+
+    /**
+     * Lấy lịch sử dự báo AI theo device.
+     */
+    @GetMapping(ApiPaths.SEG_AI + "/results/history/{deviceId}")
+    public ApiResponse<java.util.List<MlPredictionDetailResponse>> getPredictionHistory(
+            @PathVariable Long deviceId) {
+        return ApiResponse.ok(aiPredictionService.getPredictionHistory(deviceId));
+    }
 }

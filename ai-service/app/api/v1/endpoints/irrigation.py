@@ -26,7 +26,7 @@ async def predict(request: AiPredictRequest):
     Nhận sensor data từ backend, trả kết quả prediction (stub).
     Backend gọi endpoint này qua AiPredictionServiceImpl.
     """
-    logger.info("Predict request device=%s sensor=%s", request.device_id, request.sensor_data_id)
+    logger.info("Predict request device=%s sensor=%s", request.device_id, request.sensor_data_id or 'aggregate')
     return anfis_service.predict(request)
 
 

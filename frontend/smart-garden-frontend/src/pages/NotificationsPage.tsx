@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Bell,
     AlertCircle,
@@ -7,96 +7,40 @@ import {
     CheckCircle2,
     Filter,
     CheckCheck,
+    Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { notificationsApi, type NotificationItem, type NotificationCategory } from '../api/notifications';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const TEAL = '#2DD4BF';
 
-type NotificationType = 'info' | 'warning' | 'error' | 'success';
-type NotificationCategory = 'soil' | 'device' | 'irrigation' | 'system' | 'all';
-
-interface Notification {
-    id: number;
-    type: NotificationType;
-    category: NotificationCategory;
-    title: string;
-    message: string;
-    timestamp: string;
-    read: boolean;
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-    {
-        id: 1,
-        type: 'success',
-        category: 'irrigation',
-        title: 'Hoàn tất tưới',
-        message: 'Hệ thống đã tưới xong cho ESP32-Garden-01. Lượng nước: 2.1L',
-        timestamp: '2026-02-15T09:35:00+07:00',
-        read: false,
-    },
-    {
-        id: 2,
-        type: 'warning',
-        category: 'soil',
-        title: 'Độ ẩm đất thấp',
-        message: 'Độ ẩm đất (28%) thấp hơn ngưỡng tối thiểu (30%). Xem xét tưới thủ công.',
-        timestamp: '2026-02-15T09:30:00+07:00',
-        read: false,
-    },
-    {
-        id: 3,
-        type: 'info',
-        category: 'system',
-        title: 'Cập nhật dự báo',
-        message: 'Dự báo ML mới với độ tin cậy 87% đã được cập nhật.',
-        timestamp: '2026-02-15T09:00:00+07:00',
-        read: true,
-    },
-    {
-        id: 4,
-        type: 'error',
-        category: 'device',
-        title: 'Thiết bị mất kết nối',
-        message: 'ESP32-Garden-01 mất kết nối MQTT. Đang thử kết nối lại...',
-        timestamp: '2026-02-15T08:45:00+07:00',
-        read: true,
-    },
-    {
-        id: 5,
-        type: 'success',
-        category: 'device',
-        title: 'Thiết bị kết nối',
-        message: 'ESP32-Garden-01 đã kết nối thành công.',
-        timestamp: '2026-02-15T08:30:00+07:00',
-        read: true,
-    },
-];
+type NotificationType = 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS';
 
 const getTypeConfig = (type: NotificationType) => {
     switch (type) {
-        case 'error':
+        case 'ERROR':
             return {
                 icon: AlertCircle,
                 bgColor: 'bg-red-50',
                 textColor: 'text-red-600',
                 borderColor: 'border-red-200',
             };
-        case 'warning':
+        case 'WARNING':
             return {
                 icon: AlertTriangle,
                 bgColor: 'bg-amber-50',
                 textColor: 'text-amber-600',
                 borderColor: 'border-amber-200',
             };
-        case 'success':
+        case 'SUCCESS':
             return {
                 icon: CheckCircle2,
                 bgColor: 'bg-emerald-50',
                 textColor: 'text-emerald-600',
                 borderColor: 'border-emerald-200',
             };
-        case 'info':
+        case 'INFO':
         default:
             return {
                 icon: Info,
@@ -129,32 +73,86 @@ const formatTime = (timestamp: string) => {
 };
 
 export const NotificationsPage: React.FC = () => {
-    const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
-    const [filter, setFilter] = useState<NotificationCategory>('all');
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [filter, setFilter] = useState<NotificationCategory | 'all'>('all');
+    const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(0);
+    const [hasNext, setHasNext] = useState(false);
+    const [totalUnread, setTotalUnread] = useState(0);
+    const [markingAll, setMarkingAll] = useState(false);
 
-    const filtered = filter === 'all'
-        ? notifications
-        : notifications.filter((n) => n.category === filter);
+    const fetchNotifications = useCallback(async (pageNum: number, category: NotificationCategory | 'all', replace: boolean) => {
+        try {
+            const data = await notificationsApi.getMyNotifications({
+                page: pageNum,
+                size: 20,
+                ...(category !== 'all' ? { category } : {}),
+            });
+            setNotifications(prev => replace ? data.content : [...prev, ...data.content]);
+            setHasNext(data.hasNext);
+            setPage(pageNum);
+        } catch (err) {
+            toast.error(getApiErrorMessage(err));
+        }
+    }, []);
 
-    const unreadCount = notifications.filter((n) => !n.read).length;
+    const fetchUnreadCount = useCallback(async () => {
+        try {
+            const count = await notificationsApi.countUnread();
+            setTotalUnread(count);
+        } catch {
+            // non-critical
+        }
+    }, []);
 
-    const markAsRead = (id: number) => {
-        setNotifications((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        );
+    useEffect(() => {
+        setLoading(true);
+        Promise.all([
+            fetchNotifications(0, filter, true),
+            fetchUnreadCount(),
+        ]).finally(() => setLoading(false));
+    }, [filter, fetchNotifications, fetchUnreadCount]);
+
+    const markAsRead = async (notif: NotificationItem) => {
+        if (notif.read) return;
+        try {
+            await notificationsApi.markAsRead(notif.id);
+            setNotifications(prev =>
+                prev.map(n => (n.id === notif.id ? { ...n, read: true } : n))
+            );
+            setTotalUnread(prev => Math.max(0, prev - 1));
+        } catch (err) {
+            toast.error(getApiErrorMessage(err));
+        }
     };
 
-    const markAllAsRead = () => {
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-        toast.success('Đã đánh dấu tất cả là đã đọc');
+    const markAllAsRead = async () => {
+        setMarkingAll(true);
+        try {
+            await notificationsApi.markAllAsRead();
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+            setTotalUnread(0);
+            toast.success('Đã đánh dấu tất cả là đã đọc');
+        } catch (err) {
+            toast.error(getApiErrorMessage(err));
+        } finally {
+            setMarkingAll(false);
+        }
     };
 
-    const filterOptions: { value: NotificationCategory; label: string }[] = [
+    const loadMore = async () => {
+        setLoadingMore(true);
+        await fetchNotifications(page + 1, filter, false);
+        setLoadingMore(false);
+    };
+
+    const filterOptions: { value: NotificationCategory | 'all'; label: string }[] = [
         { value: 'all', label: 'Tất cả' },
-        { value: 'soil', label: 'Độ ẩm đất' },
-        { value: 'device', label: 'Thiết bị' },
-        { value: 'irrigation', label: 'Tưới tiêu' },
-        { value: 'system', label: 'Hệ thống' },
+        { value: 'SOIL', label: 'Độ ẩm đất' },
+        { value: 'DEVICE', label: 'Thiết bị' },
+        { value: 'IRRIGATION', label: 'Tưới tiêu' },
+        { value: 'SYSTEM', label: 'Hệ thống' },
     ];
 
     return (
@@ -165,17 +163,21 @@ export const NotificationsPage: React.FC = () => {
                         Thông báo
                     </h1>
                     <p className="text-slate-500 mt-1">
-                        {unreadCount > 0
-                            ? `${unreadCount} thông báo chưa đọc`
+                        {totalUnread > 0
+                            ? `${totalUnread} thông báo chưa đọc`
                             : 'Tất cả đã đọc'}
                     </p>
                 </div>
-                {unreadCount > 0 && (
+                {totalUnread > 0 && (
                     <button
                         onClick={markAllAsRead}
-                        className="flex items-center gap-2 px-4 py-2 rounded-sm border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium"
+                        disabled={markingAll}
+                        className="flex items-center gap-2 px-4 py-2 rounded-sm border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors text-sm font-medium disabled:opacity-50"
                     >
-                        <CheckCheck className="w-4 h-4" />
+                        {markingAll
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <CheckCheck className="w-4 h-4" />
+                        }
                         Đánh dấu tất cả đã đọc
                     </button>
                 )}
@@ -201,53 +203,81 @@ export const NotificationsPage: React.FC = () => {
             </div>
 
             {/* Danh sách thông báo */}
-            <div className="space-y-3">
-                {filtered.length === 0 ? (
-                    <div className="bg-white rounded-sm border border-slate-200 p-12 text-center">
-                        <Bell className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                        <p className="text-slate-500 font-medium">Không có thông báo nào</p>
-                        <p className="text-sm text-slate-400 mt-1">
-                            Các cảnh báo và thông báo sẽ xuất hiện ở đây
-                        </p>
-                    </div>
-                ) : (
-                    filtered.map((notif) => {
-                        const config = getTypeConfig(notif.type);
-                        const Icon = config.icon;
-                        return (
-                            <div
-                                key={notif.id}
-                                onClick={() => !notif.read && markAsRead(notif.id)}
-                                className={`
-                                    flex gap-4 p-4 rounded-sm border cursor-pointer transition-all
-                                    ${config.bgColor} ${config.borderColor}
-                                    ${!notif.read ? 'border-l-4' : ''}
-                                `}
-                            >
-                                <div className={`p-2 rounded-sm shrink-0 ${config.textColor}`}>
-                                    <Icon className="w-5 h-5" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <h3 className={`font-semibold ${!notif.read ? 'text-slate-900' : 'text-slate-700'}`}>
-                                            {notif.title}
-                                        </h3>
-                                        <span className="text-xs text-slate-400 shrink-0">
-                                            {formatTime(notif.timestamp)}
-                                        </span>
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {notifications.length === 0 ? (
+                        <div className="bg-white rounded-sm border border-slate-200 p-12 text-center">
+                            <Bell className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-500 font-medium">Không có thông báo nào</p>
+                            <p className="text-sm text-slate-400 mt-1">
+                                Các cảnh báo và thông báo sẽ xuất hiện ở đây
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            {notifications.map((notif) => {
+                                const config = getTypeConfig(notif.type);
+                                const Icon = config.icon;
+                                return (
+                                    <div
+                                        key={notif.id}
+                                        onClick={() => markAsRead(notif)}
+                                        className={`
+                                            flex gap-4 p-4 rounded-sm border cursor-pointer transition-all
+                                            ${config.bgColor} ${config.borderColor}
+                                            ${!notif.read ? 'border-l-4' : ''}
+                                        `}
+                                    >
+                                        <div className={`p-2 rounded-sm shrink-0 ${config.textColor}`}>
+                                            <Icon className="w-5 h-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <h3 className={`font-semibold ${!notif.read ? 'text-slate-900' : 'text-slate-700'}`}>
+                                                        {notif.title}
+                                                    </h3>
+                                                    {notif.deviceName && (
+                                                        <span className="text-xs text-slate-400">{notif.deviceName}</span>
+                                                    )}
+                                                </div>
+                                                <span className="text-xs text-slate-400 shrink-0">
+                                                    {formatTime(notif.createdAt)}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
+                                            {!notif.read && (
+                                                <span className="inline-block mt-2 text-xs font-medium text-teal-600">
+                                                    Nhấn để đánh dấu đã đọc
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
-                                    {!notif.read && (
-                                        <span className="inline-block mt-2 text-xs font-medium text-teal-600">
-                                            Nhấn để đánh dấu đã đọc
-                                        </span>
-                                    )}
+                                );
+                            })}
+
+                            {hasNext && (
+                                <div className="flex justify-center pt-2">
+                                    <button
+                                        onClick={loadMore}
+                                        disabled={loadingMore}
+                                        className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+                                    >
+                                        {loadingMore
+                                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang tải...</>
+                                            : 'Xem thêm'
+                                        }
+                                    </button>
                                 </div>
-                            </div>
-                        );
-                    })
-                )}
-            </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

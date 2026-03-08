@@ -1,11 +1,9 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { CalendarDays, Settings2, Brain } from 'lucide-react';
+import { Brain } from 'lucide-react';
 
 const tabs = [
-    { to: '/automation/schedules', icon: CalendarDays, label: 'Lịch tưới' },
-    { to: '/automation/config', icon: Settings2, label: 'Cấu hình' },
-    { to: '/automation/predictions', icon: Brain, label: 'Dự báo' },
+    { to: '/automation/predictions', icon: Brain, label: 'Dự báo AI' },
 ] as const;
 
 export const AutomationLayout: React.FC = () => {
@@ -19,10 +17,9 @@ export const AutomationLayout: React.FC = () => {
                             to={to}
                             end={true}
                             className={({ isActive }) =>
-                                `flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors border-b-2 -mb-px ${
-                                    isActive
-                                        ? 'text-teal-600 border-teal-500 bg-teal-50/50'
-                                        : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-50'
+                                `flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors border-b-2 -mb-px ${isActive
+                                    ? 'text-teal-600 border-teal-500 bg-teal-50/50'
+                                    : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-50'
                                 }`
                             }
                         >

@@ -8,14 +8,14 @@ import java.time.LocalDateTime;
  * Item danh sách dự báo ML.
  */
 public record MlPredictionListItemResponse(
-                Long id,
-                Long deviceId,
-                PredictionType predictionType,
-                Float predictedWaterAmount,
-                Integer predictedDuration,
-                Integer predictionHorizon,
-                Float modelAccuracy,
-                Float anfisOutput,
-                Float anfisAccuracy,
-                LocalDateTime createdAt) {
+        Long id,
+        Long deviceId,
+        PredictionType predictionType,
+        Float predictedWaterAmount,
+        Integer predictedDuration,
+        Integer predictionHorizon,
+        Float modelAccuracy,
+        Float aiOutput,
+        Float aiAccuracy,
+        LocalDateTime createdAt) {
 }

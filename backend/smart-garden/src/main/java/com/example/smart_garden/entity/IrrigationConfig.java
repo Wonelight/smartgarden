@@ -72,4 +72,21 @@ public class IrrigationConfig extends BaseEntity {
     @Column(name = "ai_enabled")
     private Boolean aiEnabled = false;
 
+    /**
+     * Lưu lượng bơm (lít/phút). Dùng để tính waterVolume = duration(s) / 60 * pumpFlowRate.
+     * Mặc định 0.5 L/phút cho bơm mini thông thường.
+     */
+    @Builder.Default
+    @Column(name = "pump_flow_rate")
+    private Float pumpFlowRate = 0.5f;
+
+    /**
+     * Số cây / số vòi bơm trong vườn (mỗi cây có 1 vòi).
+     * Dùng để tính tổng lưu lượng thực: totalFlow = pumpFlowRate × nozzleCount.
+     * AI service dùng để tính flow_rate_mm_per_sec = totalFlow / gardenArea.
+     */
+    @Builder.Default
+    @Column(name = "nozzle_count")
+    private Integer nozzleCount = 1;
+
 }

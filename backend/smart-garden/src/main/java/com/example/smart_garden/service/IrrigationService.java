@@ -35,6 +35,12 @@ public interface IrrigationService {
     // ================== IRRIGATION HISTORY ==================
 
     /**
+     * Ingest history record from MQTT (from MCU).
+     */
+    void ingestHistoryFromMqtt(String deviceCode,
+            com.example.smart_garden.mqtt.payload.MqttIrrigationHistoryPayload payload);
+
+    /**
      * Lấy lịch sử tưới của device với phân trang.
      */
     Page<IrrigationHistoryListItemResponse> getHistoryByDeviceId(Long deviceId, Pageable pageable);

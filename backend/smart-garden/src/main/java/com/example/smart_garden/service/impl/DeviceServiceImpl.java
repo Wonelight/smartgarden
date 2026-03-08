@@ -5,9 +5,12 @@ import com.example.smart_garden.dto.device.response.*;
 import com.example.smart_garden.entity.Device;
 import com.example.smart_garden.entity.User;
 import com.example.smart_garden.entity.enums.DeviceStatus;
+import com.example.smart_garden.event.SystemLogPublisher;
+import com.example.smart_garden.entity.enums.LogSource;
 import com.example.smart_garden.exception.AppException;
 import com.example.smart_garden.exception.ErrorCode;
 import com.example.smart_garden.mapper.DeviceMapper;
+import com.example.smart_garden.mqtt.MqttCommandSender;
 import com.example.smart_garden.repository.DeviceRepository;
 import com.example.smart_garden.repository.UserRepository;
 import com.example.smart_garden.service.DeviceService;
@@ -32,6 +35,8 @@ public class DeviceServiceImpl implements DeviceService {
     private final DeviceRepository deviceRepository;
     private final UserRepository userRepository;
     private final DeviceMapper deviceMapper;
+    private final MqttCommandSender mqttCommandSender;
+    private final SystemLogPublisher sysLog;
 
     // ================== USER ==================
 
@@ -85,6 +90,15 @@ public class DeviceServiceImpl implements DeviceService {
         if (request.altitude() != null) {
             device.setAltitude(request.altitude());
         }
+        if (request.gardenArea() != null) {
+            device.setGardenArea(request.gardenArea());
+        }
+        if (request.defaultCropId() != null) {
+            device.setDefaultCropId(request.defaultCropId());
+        }
+        if (request.defaultSoilId() != null) {
+            device.setDefaultSoilId(request.defaultSoilId());
+        }
 
         device = deviceRepository.save(device);
         log.info("User {} updated device: {}", user.getUsername(), device.getDeviceCode());
@@ -109,6 +123,14 @@ public class DeviceServiceImpl implements DeviceService {
                 device.setUser(user);
                 device = deviceRepository.save(device);
                 log.info("User {} linked unassigned device: {}", user.getUsername(), deviceCode);
+                sysLog.info(LogSource.BACKEND, device.getId(),
+                        "Thiết bị " + deviceCode + " được liên kết với người dùng " + user.getUsername());
+                // Notify ESP32 it's registered
+                try {
+                    mqttCommandSender.publishRegistrationStatus(deviceCode, "DEVICE_REGISTERED");
+                } catch (Exception e) {
+                    log.warn("Failed to publish DEVICE_REGISTERED for {}: {}", deviceCode, e.getMessage());
+                }
                 return deviceMapper.toUserDetail(device);
             }
             if (!device.getUser().getId().equals(user.getId())) {
@@ -126,6 +148,14 @@ public class DeviceServiceImpl implements DeviceService {
                 .build();
         device = deviceRepository.save(device);
         log.info("User {} connected new device by MAC: {}", user.getUsername(), deviceCode);
+        sysLog.info(LogSource.BACKEND, device.getId(),
+                "Thiết bị mới " + deviceCode + " đã được đăng ký bởi " + user.getUsername());
+        // Notify ESP32 it's registered
+        try {
+            mqttCommandSender.publishRegistrationStatus(deviceCode, "DEVICE_REGISTERED");
+        } catch (Exception e) {
+            log.warn("Failed to publish DEVICE_REGISTERED for {}: {}", deviceCode, e.getMessage());
+        }
         return deviceMapper.toUserDetail(device);
     }
 
@@ -140,9 +170,18 @@ public class DeviceServiceImpl implements DeviceService {
             throw new AppException(ErrorCode.ACCESS_DENIED, "Device does not belong to you");
         }
 
+        // Notify ESP32 before clearing user
+        try {
+            mqttCommandSender.publishRegistrationStatus(device.getDeviceCode(), "DEVICE_REMOVED");
+        } catch (Exception e) {
+            log.warn("Failed to publish DEVICE_REMOVED for {}: {}", device.getDeviceCode(), e.getMessage());
+        }
+
         device.setUser(null);
         deviceRepository.save(device);
         log.info("User {} disconnected device: {}", user.getUsername(), device.getDeviceCode());
+        sysLog.warn(LogSource.BACKEND, device.getId(),
+                "Thiết bị " + device.getDeviceCode() + " đã bị ngắt kết nối bởi " + user.getUsername());
     }
 
     @Override
@@ -154,6 +193,13 @@ public class DeviceServiceImpl implements DeviceService {
 
         if (device.getUser() == null || !device.getUser().getId().equals(user.getId())) {
             throw new AppException(ErrorCode.ACCESS_DENIED, "Device does not belong to you");
+        }
+
+        // Notify ESP32 before deleting
+        try {
+            mqttCommandSender.publishRegistrationStatus(device.getDeviceCode(), "DEVICE_REMOVED");
+        } catch (Exception e) {
+            log.warn("Failed to publish DEVICE_REMOVED for {}: {}", device.getDeviceCode(), e.getMessage());
         }
 
         device.softDelete();
@@ -249,6 +295,13 @@ public class DeviceServiceImpl implements DeviceService {
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.DEVICE_NOT_FOUND));
 
+        // Notify ESP32 before deleting
+        try {
+            mqttCommandSender.publishRegistrationStatus(device.getDeviceCode(), "DEVICE_REMOVED");
+        } catch (Exception e) {
+            log.warn("Failed to publish DEVICE_REMOVED for {}: {}", device.getDeviceCode(), e.getMessage());
+        }
+
         device.softDelete();
         deviceRepository.save(device);
         log.info("Admin deleted device: {}", device.getDeviceCode());
@@ -256,14 +309,44 @@ public class DeviceServiceImpl implements DeviceService {
 
     @Override
     @Transactional
-    public void updateStatusByDeviceCode(String deviceCode, DeviceStatus status) {
+    public void updateStatusByDeviceCode(String deviceCode, DeviceStatus status,
+            com.example.smart_garden.mqtt.payload.MqttStatusPayload payload) {
         deviceRepository.findByDeviceCode(deviceCode).ifPresent(device -> {
+            DeviceStatus previousStatus = device.getStatus();
             device.setStatus(status);
             if (status == DeviceStatus.ONLINE) {
                 device.setLastOnline(java.time.LocalDateTime.now());
             }
+
+            // Fallback auto-location update (if not explicitly set by user yet)
+            if (payload != null && payload.getGeoLat() != null && payload.getGeoLng() != null) {
+                if (device.getLatitude() == null && device.getLongitude() == null) {
+                    device.setLatitude(payload.getGeoLat());
+                    device.setLongitude(payload.getGeoLng());
+
+                    if (device.getLocation() == null || device.getLocation().isBlank()) {
+                        String locStr = payload.getGeoCity() + ", " + payload.getGeoRegion() + ", "
+                                + payload.getGeoCountry();
+                        device.setLocation(locStr);
+                    }
+                    log.info("Auto-updated location for device {}: {}, {}", deviceCode, payload.getGeoLat(),
+                            payload.getGeoLng());
+                }
+            }
+
             deviceRepository.save(device);
             log.debug("Updated device {} status to {}", deviceCode, status);
+
+            // Chỉ ghi log khi có thay đổi trạng thái (tránh spam mỗi heartbeat)
+            if (!status.equals(previousStatus)) {
+                if (status == DeviceStatus.ONLINE) {
+                    sysLog.info(LogSource.ESP32, device.getId(),
+                            "Thiết bị " + deviceCode + " đã kết nối (ONLINE)");
+                } else {
+                    sysLog.warn(LogSource.ESP32, device.getId(),
+                            "Thiết bị " + deviceCode + " mất kết nối (OFFLINE)");
+                }
+            }
         });
     }
 

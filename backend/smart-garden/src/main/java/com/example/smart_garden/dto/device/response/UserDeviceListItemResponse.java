@@ -12,8 +12,12 @@ public record UserDeviceListItemResponse(
         String deviceName,
         String deviceCode,
         String location,
+        Double latitude,
+        Double longitude,
+        Double altitude,
         DeviceStatus status,
-        LocalDateTime lastOnline
-) {
+        LocalDateTime lastOnline,
+        Double gardenArea,
+        Long defaultCropId,
+        Long defaultSoilId) {
 }
-

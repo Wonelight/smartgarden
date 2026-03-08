@@ -115,6 +115,7 @@ export const SoilLibraryPage: React.FC = () => {
                 wiltingPoint: variables.wiltingPoint,
                 infiltrationShallowRatio: variables.infiltrationShallowRatio || null,
                 createdAt: new Date().toISOString(),
+                updatedAt: '',
             };
             return [...soils, newSoil];
         },
@@ -159,48 +160,48 @@ export const SoilLibraryPage: React.FC = () => {
 
     const validateForm = (): boolean => {
         const errors: Record<string, string> = {};
-        
+
         // Validate name
         if (!formData.name || formData.name.trim() === '') {
             errors.name = 'Tên loại đất là bắt buộc';
         } else if (formData.name.length > 100) {
             errors.name = 'Tên không được vượt quá 100 ký tự';
         }
-        
+
         // Validate fieldCapacity
-        if (formData.fieldCapacity === undefined || formData.fieldCapacity === null || formData.fieldCapacity === '') {
+        if (formData.fieldCapacity === undefined || formData.fieldCapacity === null || String(formData.fieldCapacity) === '') {
             errors.fieldCapacity = 'FC là bắt buộc';
         } else if (formData.fieldCapacity < 0 || formData.fieldCapacity > 100) {
             errors.fieldCapacity = 'FC phải từ 0 đến 100';
         }
-        
+
         // Validate wiltingPoint
-        if (formData.wiltingPoint === undefined || formData.wiltingPoint === null || formData.wiltingPoint === '') {
+        if (formData.wiltingPoint === undefined || formData.wiltingPoint === null || String(formData.wiltingPoint) === '') {
             errors.wiltingPoint = 'WP là bắt buộc';
         } else if (formData.wiltingPoint < 0 || formData.wiltingPoint > 100) {
             errors.wiltingPoint = 'WP phải từ 0 đến 100';
         }
-        
+
         // Cross-field validation: WP must be < FC
         if (
             formData.fieldCapacity != null &&
-            formData.fieldCapacity !== '' &&
+            String(formData.fieldCapacity) !== '' &&
             formData.wiltingPoint != null &&
-            formData.wiltingPoint !== '' &&
+            String(formData.wiltingPoint) !== '' &&
             formData.wiltingPoint >= formData.fieldCapacity
         ) {
             errors.wiltingPoint = 'WP phải nhỏ hơn FC';
         }
-        
+
         // Validate infiltrationShallowRatio (optional)
         if (
             formData.infiltrationShallowRatio != null &&
-            formData.infiltrationShallowRatio !== '' &&
+            String(formData.infiltrationShallowRatio) !== '' &&
             (formData.infiltrationShallowRatio < 0.2 || formData.infiltrationShallowRatio > 0.9)
         ) {
             errors.infiltrationShallowRatio = 'Tỷ lệ thẩm thấu phải từ 0.2 đến 0.9';
         }
-        
+
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -217,7 +218,7 @@ export const SoilLibraryPage: React.FC = () => {
                 if (isNaN(fc)) return 'FC phải là số hợp lệ';
                 if (fc < 0 || fc > 100) return 'FC phải từ 0 đến 100';
                 // Cross-field: check WP if exists
-                if (formData.wiltingPoint != null && formData.wiltingPoint !== '' && formData.wiltingPoint >= fc) {
+                if (formData.wiltingPoint != null && String(formData.wiltingPoint) !== '' && formData.wiltingPoint >= fc) {
                     return 'FC phải lớn hơn WP';
                 }
                 return '';
@@ -227,7 +228,7 @@ export const SoilLibraryPage: React.FC = () => {
                 if (isNaN(wp)) return 'WP phải là số hợp lệ';
                 if (wp < 0 || wp > 100) return 'WP phải từ 0 đến 100';
                 // Cross-field: check FC if exists
-                if (formData.fieldCapacity != null && formData.fieldCapacity !== '' && wp >= formData.fieldCapacity) {
+                if (formData.fieldCapacity != null && String(formData.fieldCapacity) !== '' && wp >= formData.fieldCapacity) {
                     return 'WP phải nhỏ hơn FC';
                 }
                 return '';
@@ -263,7 +264,7 @@ export const SoilLibraryPage: React.FC = () => {
     const handleFieldChange = (field: string, value: any) => {
         const newFormData = { ...formData, [field]: value };
         setFormData(newFormData);
-        
+
         // Realtime validation: validate current field
         const error = validateField(field, value);
         if (error) {
@@ -273,9 +274,9 @@ export const SoilLibraryPage: React.FC = () => {
             delete newErrors[field];
             setFormErrors(newErrors);
         }
-        
+
         // Cross-field validation: if FC changes, re-validate WP
-        if (field === 'fieldCapacity' && formData.wiltingPoint != null && formData.wiltingPoint !== '') {
+        if (field === 'fieldCapacity' && formData.wiltingPoint != null && String(formData.wiltingPoint) !== '') {
             const wpError = validateField('wiltingPoint', formData.wiltingPoint);
             if (wpError) {
                 setFormErrors(prev => ({ ...prev, wiltingPoint: wpError }));
@@ -287,9 +288,9 @@ export const SoilLibraryPage: React.FC = () => {
                 });
             }
         }
-        
+
         // Cross-field validation: if WP changes, re-validate FC
-        if (field === 'wiltingPoint' && formData.fieldCapacity != null && formData.fieldCapacity !== '') {
+        if (field === 'wiltingPoint' && formData.fieldCapacity != null && String(formData.fieldCapacity) !== '') {
             const fcError = validateField('fieldCapacity', formData.fieldCapacity);
             if (fcError) {
                 setFormErrors(prev => ({ ...prev, fieldCapacity: fcError }));
@@ -312,15 +313,15 @@ export const SoilLibraryPage: React.FC = () => {
             delete newErrors[field];
             setFormErrors(newErrors);
         }
-        
+
         // Cross-field validation on blur
-        if (field === 'fieldCapacity' && formData.wiltingPoint != null && formData.wiltingPoint !== '') {
+        if (field === 'fieldCapacity' && formData.wiltingPoint != null && String(formData.wiltingPoint) !== '') {
             const wpError = validateField('wiltingPoint', formData.wiltingPoint);
             if (wpError) {
                 setFormErrors(prev => ({ ...prev, wiltingPoint: wpError }));
             }
         }
-        if (field === 'wiltingPoint' && formData.fieldCapacity != null && formData.fieldCapacity !== '') {
+        if (field === 'wiltingPoint' && formData.fieldCapacity != null && String(formData.fieldCapacity) !== '') {
             const fcError = validateField('fieldCapacity', formData.fieldCapacity);
             if (fcError) {
                 setFormErrors(prev => ({ ...prev, fieldCapacity: fcError }));
@@ -423,8 +424,8 @@ export const SoilLibraryPage: React.FC = () => {
                                 duration={1500}
                                 label={
                                     createMutation.isPending ? 'Đang tạo loại đất...' :
-                                    updateMutation.isPending ? 'Đang cập nhật loại đất...' :
-                                    'Đang xóa loại đất...'
+                                        updateMutation.isPending ? 'Đang cập nhật loại đất...' :
+                                            'Đang xóa loại đất...'
                                 }
                             />
                         </div>
@@ -464,11 +465,10 @@ export const SoilLibraryPage: React.FC = () => {
                                     onChange={(e) => handleFieldChange('name', e.target.value)}
                                     onBlur={(e) => handleFieldBlur('name', e.target.value)}
                                     placeholder="VD: Đất thịt (Loam)"
-                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                        formErrors.name
-                                            ? 'border-red-300 focus:border-red-400 bg-red-50/50'
-                                            : 'border-slate-200 focus:border-teal-400'
-                                    }`}
+                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.name
+                                        ? 'border-red-300 focus:border-red-400 bg-red-50/50'
+                                        : 'border-slate-200 focus:border-teal-400'
+                                        }`}
                                 />
                                 {formErrors.name && (
                                     <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
@@ -496,11 +496,10 @@ export const SoilLibraryPage: React.FC = () => {
                                             handleFieldBlur('fieldCapacity', e.target.value ? parseFloat(e.target.value) : '')
                                         }
                                         placeholder="30"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.fieldCapacity
-                                                ? 'border-red-300 focus:border-red-400 bg-red-50/50'
-                                                : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.fieldCapacity
+                                            ? 'border-red-300 focus:border-red-400 bg-red-50/50'
+                                            : 'border-slate-200 focus:border-teal-400'
+                                            }`}
                                     />
                                     {formErrors.fieldCapacity && (
                                         <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
@@ -527,11 +526,10 @@ export const SoilLibraryPage: React.FC = () => {
                                             handleFieldBlur('wiltingPoint', e.target.value ? parseFloat(e.target.value) : '')
                                         }
                                         placeholder="15"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.wiltingPoint
-                                                ? 'border-red-300 focus:border-red-400 bg-red-50/50'
-                                                : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.wiltingPoint
+                                            ? 'border-red-300 focus:border-red-400 bg-red-50/50'
+                                            : 'border-slate-200 focus:border-teal-400'
+                                            }`}
                                     />
                                     {formErrors.wiltingPoint && (
                                         <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
@@ -564,11 +562,10 @@ export const SoilLibraryPage: React.FC = () => {
                                         )
                                     }
                                     placeholder="0.70"
-                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                        formErrors.infiltrationShallowRatio
-                                            ? 'border-red-300 focus:border-red-400 bg-red-50/50'
-                                            : 'border-slate-200 focus:border-teal-400'
-                                    }`}
+                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.infiltrationShallowRatio
+                                        ? 'border-red-300 focus:border-red-400 bg-red-50/50'
+                                        : 'border-slate-200 focus:border-teal-400'
+                                        }`}
                                 />
                                 {formErrors.infiltrationShallowRatio && (
                                     <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
@@ -606,10 +603,10 @@ export const SoilLibraryPage: React.FC = () => {
                                     !formData.name?.trim() ||
                                     formData.fieldCapacity === undefined ||
                                     formData.fieldCapacity === null ||
-                                    formData.fieldCapacity === '' ||
+                                    String(formData.fieldCapacity) === '' ||
                                     formData.wiltingPoint === undefined ||
                                     formData.wiltingPoint === null ||
-                                    formData.wiltingPoint === ''
+                                    String(formData.wiltingPoint) === ''
                                 }
                                 className="flex-1 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl text-sm font-medium flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:from-teal-600 hover:to-emerald-600 transition-all shadow-sm"
                             >

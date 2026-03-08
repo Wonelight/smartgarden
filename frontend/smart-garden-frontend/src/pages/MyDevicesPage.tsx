@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Wifi, WifiOff, AlertTriangle, Search, MapPin, Cpu,
-    Plug, BarChart3, Settings2, CalendarDays, Package, Loader2, X, Pencil, Unplug, Trash2, MoreVertical, FileText
+    Plug, BarChart3, Settings2, CalendarDays, Package, Loader2, X, Pencil, Unplug, Trash2, MoreVertical, FileText, Navigation
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,6 +36,58 @@ const EditDeviceModal: React.FC<{
     const [latitude, setLatitude] = useState(device.latitude != null ? String(device.latitude) : '');
     const [longitude, setLongitude] = useState(device.longitude != null ? String(device.longitude) : '');
     const [altitude, setAltitude] = useState(device.altitude != null ? String(device.altitude) : '');
+    const [isDetecting, setIsDetecting] = useState(false);
+
+    const handleDetectLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error('Trình duyệt không hỗ trợ định vị');
+            return;
+        }
+
+        setIsDetecting(true);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                setLatitude(lat.toFixed(6));
+                setLongitude(lng.toFixed(6));
+
+                try {
+                    // Lấy độ cao (Altitude) bằng API Open-Meteo
+                    const altRes = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`);
+                    if (altRes.ok) {
+                        const altData = await altRes.json();
+                        if (altData?.elevation?.[0] != null) {
+                            setAltitude(altData.elevation[0].toFixed(1));
+                        }
+                    }
+
+                    // Lấy tên khu vực (Reverse Geocoding) bằng BigDataCloud API
+                    const locRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=vi`);
+                    if (locRes.ok) {
+                        const locData = await locRes.json();
+                        const addressParts = [locData.locality || locData.city, locData.principalSubdivision, locData.countryName].filter(Boolean);
+                        const address = addressParts.join(', ');
+                        if (address) {
+                            setLocation(address.length > 255 ? address.substring(0, 255) : address);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Lỗi khi lấy thông tin phụ trợ:", err);
+                }
+
+                setIsDetecting(false);
+                toast.success('Đã lấy tọa độ và các thông tin liên quan');
+            },
+            (error) => {
+                let errorMsg = 'Không thể lấy tọa độ';
+                if (error.code === error.PERMISSION_DENIED) errorMsg = 'Vui lòng cấp quyền truy cập vị trí';
+                toast.error(errorMsg);
+                setIsDetecting(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,6 +154,17 @@ const EditDeviceModal: React.FC<{
                             />
                         </div>
                     </div>
+
+                    <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={isDetecting}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors disabled:opacity-50"
+                    >
+                        {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                        {isDetecting ? 'Đang lấy tọa độ...' : 'Lấy tọa độ hiện tại'}
+                    </button>
+
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Độ cao (m)</label>
                         <input

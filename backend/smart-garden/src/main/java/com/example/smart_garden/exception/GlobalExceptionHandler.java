@@ -1,11 +1,14 @@
 package com.example.smart_garden.exception;
 
 import com.example.smart_garden.dto.common.ApiResponse;
+import com.example.smart_garden.entity.enums.LogSource;
+import com.example.smart_garden.event.SystemLogPublisher;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,6 +18,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -26,6 +31,9 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @Autowired
+    private SystemLogPublisher sysLog;
 
     /**
      * Xử lý AppException - Business logic errors.
@@ -160,6 +168,14 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request) {
         log.error("Uncaught exception: {} - {}", request.getRequestURI(), ex.getMessage(), ex);
+
+        StringWriter sw = new StringWriter();
+        ex.printStackTrace(new PrintWriter(sw));
+        String stackTrace = sw.toString();
+        if (stackTrace.length() > 4000) stackTrace = stackTrace.substring(0, 4000) + "...";
+        sysLog.error(LogSource.BACKEND, null,
+                "Uncaught exception at " + request.getRequestURI() + ": " + ex.getMessage(),
+                stackTrace);
 
         ErrorCode errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION;
         return ResponseEntity

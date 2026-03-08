@@ -26,4 +26,9 @@ public interface AiPredictionService {
      * Lấy kết quả AI prediction mới nhất theo device.
      */
     MlPredictionDetailResponse getLatestResult(Long deviceId);
+
+    /**
+     * Lấy lịch sử dự báo AI theo device.
+     */
+    java.util.List<MlPredictionDetailResponse> getPredictionHistory(Long deviceId);
 }

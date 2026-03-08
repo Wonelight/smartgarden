@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import {
     Brain, Zap, TrendingUp, BarChart3, Droplets,
-    Target, Activity, Gauge, CloudRain, Sun, Wind
+    Target, Activity, Gauge, CloudRain, Sun, Wind, X
 } from 'lucide-react';
 import * as Tabs from '@radix-ui/react-tabs';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer, Line, Area, AreaChart,
-    RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-    LineChart, ComposedChart,
+    ComposedChart,
 } from 'recharts';
-import { mockFuzzyResults } from '../mocks/smartGardenMocks';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { deviceApi, type UserDeviceListItem } from '../api/device';
 import { waterBalanceApi } from '../api/waterBalance';
-import { aiApi } from '../api/ai';
+import { aiApi, type MlPredictionDetailResponse } from '../api/ai';
 import { sensorApi } from '../api/sensor';
+import { irrigationApi } from '../api/irrigation';
 import { toast } from 'sonner';
 import { SkeletonCard, SkeletonStatsGrid, SkeletonChart, SkeletonTable } from '../components/ui/Skeleton';
 import { ProgressBar } from '../components/ui/ProgressBar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/Tooltip';
+import { useMonitoringDevice } from '../contexts/MonitoringDeviceContext';
+import { getApiErrorMessage } from '../utils/apiError';
 
 // ============================================
 // DECISION BADGE CONFIG
@@ -35,15 +37,35 @@ const decisionConfig = {
 // ML PREDICTIONS TAB (real AI service)
 // ============================================
 
-const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selectedDeviceId }) => {
+const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null, isOffline?: boolean }> = ({ selectedDeviceId, isOffline = false }) => {
     const queryClient = useQueryClient();
+    const [selectedPrediction, setSelectedPrediction] = useState<MlPredictionDetailResponse | null>(null);
 
-    const { data: latestResult, isLoading: loadingLatest, error: errorLatest } = useQuery({
-        queryKey: ['aiLatestResult', selectedDeviceId],
-        queryFn: () => aiApi.getLatestResult(selectedDeviceId!),
+    const { data: historyResults, isLoading: loadingHistory, error: errorHistory } = useQuery({
+        queryKey: ['aiHistory', selectedDeviceId],
+        queryFn: () => aiApi.getHistory(selectedDeviceId!),
         enabled: !!selectedDeviceId,
         retry: false,
     });
+
+    useEffect(() => {
+        if (errorHistory) {
+            // Only show toast if it's not a 404 (404 is handled in UI with a friendly message)
+            const status = (errorHistory as any)?.response?.status;
+            if (status !== 404) {
+                toast.error(getApiErrorMessage(errorHistory));
+            } else {
+                // For 404, check if it's a specific "no crop season" error
+                const errorMessage = getApiErrorMessage(errorHistory);
+                if (errorMessage.includes('Không có mùa vụ nào đang hoạt động cho thiết bị này.')) {
+                    // Handle this specific 404 message differently if needed, or just let it pass
+                    // For now, we'll just not show a toast for this specific 404, as the UI handles it.
+                } else {
+                    toast.error(errorMessage);
+                }
+            }
+        }
+    }, [errorHistory]);
 
     const { data: latestSensor, isLoading: loadingSensor, error: errorSensor } = useQuery({
         queryKey: ['sensorLatest', selectedDeviceId],
@@ -52,28 +74,71 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
         retry: false,
     });
 
+    const { data: config, isLoading: loadingConfig } = useQuery({
+        queryKey: ['irrigationConfig', selectedDeviceId],
+        queryFn: () => irrigationApi.getConfigByDeviceId(selectedDeviceId!),
+        enabled: !!selectedDeviceId,
+        retry: false,
+    });
+
     const predictMutation = useMutation({
         mutationFn: (payload: { deviceId: number; sensorDataId: number }) => aiApi.predict(payload),
         onSuccess: () => {
             toast.success('Đã gọi dự báo AI thành công.');
-            queryClient.invalidateQueries({ queryKey: ['aiLatestResult', selectedDeviceId] });
+            queryClient.invalidateQueries({ queryKey: ['aiHistory', selectedDeviceId] });
         },
         onError: (err: unknown) => {
-            const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : 'Lỗi gọi AI';
-            toast.error(msg);
+            toast.error(getApiErrorMessage(err));
         },
     });
 
-    const confidence = latestResult?.modelAccuracy ?? latestResult?.anfisAccuracy ?? 0;
-    const chartData = latestResult
-        ? [{
-            time: new Date(latestResult.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
-            waterAmount: latestResult.predictedWaterAmount ?? 0,
-            confidence: Math.round(confidence * 100),
-        }]
+    const enableAiMutation = useMutation({
+        mutationFn: () => irrigationApi.userUpdateConfig(selectedDeviceId!, { aiEnabled: true }),
+        onSuccess: () => {
+            toast.success('Đã bật tính năng AI.');
+            queryClient.invalidateQueries({ queryKey: ['irrigationConfig', selectedDeviceId] });
+        },
+        onError: (err: unknown) => {
+            toast.error(getApiErrorMessage(err));
+        }
+    });
+
+    const latestResult = historyResults && historyResults.length > 0 ? historyResults[0] : null;
+    const confidence = latestResult?.modelAccuracy ?? latestResult?.aiAccuracy ?? 0;
+
+    // Prepare chart data from history (reverse to show oldest to newest left to right)
+    const chartData = historyResults
+        ? [...historyResults].reverse().map(result => {
+            const resultConfidence = result.modelAccuracy ?? result.aiAccuracy ?? 0;
+            return {
+                time: new Date(result.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                waterAmount: result.predictedWaterAmount ?? 0,
+                confidence: Math.round(resultConfidence * 100),
+            };
+        })
         : [];
 
-    const modelVersion = (latestResult?.anfisParams as Record<string, unknown> | undefined)?.model as string ?? '—';
+    const modelVersion = (latestResult?.aiParams as Record<string, unknown> | undefined)?.model as string ?? '—';
+
+    // Helper to format AI params
+    const formatAiParams = (params: Record<string, unknown> | null) => {
+        if (!params) return null;
+        const features = params.features as Record<string, number | string> | undefined;
+        const allFeatures = features ?? {};
+        return {
+            model: params.model ?? '—',
+            version: params.version ?? '—',
+            etc: features?.etc ?? '—',
+            soilMoistDeficit: features?.soil_moist_deficit ?? '—',
+            predictedDepl24h: features?.predicted_depl_24h ?? '—',
+            raw: features?.raw ?? '—',
+            shallow: features?.soil_moist_shallow ?? '—',
+            deep: features?.soil_moist_deep ?? '—',
+            waterMm: features?.water_mm ?? '—',
+            soilTrend1h: features?.soil_moist_trend_1h ?? '—',
+            allFeatures,
+        };
+    };
 
     if (!selectedDeviceId) {
         return (
@@ -85,8 +150,29 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
 
     const hasSensorData = !!latestSensor && !errorSensor;
     const noSensorData = selectedDeviceId && !loadingSensor && (!!errorSensor || !latestSensor);
+    const isAiEnabled = config?.aiEnabled === true;
 
-    if (errorLatest && (errorLatest as { response?: { status?: number } })?.response?.status === 404) {
+    if (!isAiEnabled && !loadingConfig) {
+        return (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 text-center text-amber-700">
+                <Brain className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+                <h3 className="text-lg font-bold mb-2">Tính năng AI chưa được bật</h3>
+                <p className="text-sm mb-4">
+                    Thiết bị này hiện chưa bật tính năng Dự báo AI (Machine Learning).
+                    Bật tính năng này để hệ thống có thể dự báo lượng nước tự động.
+                </p>
+                <button
+                    onClick={() => enableAiMutation.mutate()}
+                    disabled={enableAiMutation.isPending || isOffline}
+                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                >
+                    {enableAiMutation.isPending ? 'Đang bật...' : 'Bật tính năng AI ngay'}
+                </button>
+            </div>
+        );
+    }
+
+    if (errorHistory && (errorHistory as { response?: { status?: number } })?.response?.status === 404) {
         return (
             <div className="space-y-6">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -102,9 +188,15 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
                 )}
                 {hasSensorData && (
                     <button
-                        onClick={() => predictMutation.mutate({ deviceId: selectedDeviceId, sensorDataId: latestSensor.id })}
-                        disabled={predictMutation.isPending}
-                        className="px-4 py-2 bg-teal-500 text-white rounded-xl font-medium hover:bg-teal-600 disabled:opacity-50"
+                        onClick={() => {
+                            if (isOffline) {
+                                toast.error('Thiết bị đang offline, không thể gọi dự báo AI thủ công.');
+                                return;
+                            }
+                            predictMutation.mutate({ deviceId: selectedDeviceId, sensorDataId: latestSensor.id });
+                        }}
+                        disabled={predictMutation.isPending || isOffline}
+                        className={`px-4 py-2 text-white rounded-xl font-medium transition-colors ${isOffline ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 disabled:opacity-50'}`}
                     >
                         {predictMutation.isPending ? 'Đang gọi...' : 'Gọi dự báo AI'}
                     </button>
@@ -119,20 +211,20 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
                 <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 rounded-xl bg-orange-50 text-orange-600"><Target className="w-5 h-5" /></div>
-                        <span className="text-sm text-slate-500">Độ tin cậy</span>
+                        <span className="text-sm text-slate-500">Độ tin cậy (Mới nhất)</span>
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold text-slate-800">{loadingLatest ? '—' : Math.round(confidence * 100)}</span>
+                        <span className="text-2xl font-bold text-slate-800">{loadingHistory ? '—' : Math.round(confidence * 100)}</span>
                         <span className="text-sm text-slate-400">%</span>
                     </div>
                 </div>
                 <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 rounded-xl bg-blue-50 text-blue-600"><Droplets className="w-5 h-5" /></div>
-                        <span className="text-sm text-slate-500">Lượng nước dự báo</span>
+                        <span className="text-sm text-slate-500">Lượng nước (Mới nhất)</span>
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold text-slate-800">{loadingLatest ? '—' : (latestResult?.predictedWaterAmount ?? 0).toFixed(1)}</span>
+                        <span className="text-2xl font-bold text-slate-800">{loadingHistory ? '—' : (latestResult?.predictedWaterAmount ?? 0).toFixed(1)}</span>
                         <span className="text-sm text-slate-400">mm</span>
                     </div>
                 </div>
@@ -141,7 +233,7 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
                         <div className="p-2 rounded-xl bg-purple-50 text-purple-600"><Brain className="w-5 h-5" /></div>
                         <span className="text-sm text-slate-500">Model</span>
                     </div>
-                    <span className="text-lg font-bold text-slate-800 font-mono">{loadingLatest ? '—' : modelVersion}</span>
+                    <span className="text-lg font-bold text-slate-800 font-mono">{loadingHistory ? '—' : modelVersion}</span>
                 </div>
             </div>
 
@@ -155,9 +247,15 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
             )}
             {hasSensorData && (
                 <button
-                    onClick={() => predictMutation.mutate({ deviceId: selectedDeviceId, sensorDataId: latestSensor!.id })}
-                    disabled={predictMutation.isPending}
-                    className="px-4 py-2 bg-teal-500 text-white rounded-xl font-medium hover:bg-teal-600 disabled:opacity-50"
+                    onClick={() => {
+                        if (isOffline) {
+                            toast.error('Thiết bị đang offline, không thể gọi dự báo AI thủ công.');
+                            return;
+                        }
+                        predictMutation.mutate({ deviceId: selectedDeviceId, sensorDataId: latestSensor!.id });
+                    }}
+                    disabled={predictMutation.isPending || isOffline}
+                    className={`px-4 py-2 text-white rounded-xl font-medium transition-colors ${isOffline ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 disabled:opacity-50'}`}
                 >
                     {predictMutation.isPending ? 'Đang gọi...' : 'Gọi dự báo AI (mới nhất)'}
                 </button>
@@ -167,7 +265,7 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
                 <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
                     <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-teal-500" />
-                        Dự báo lượng nước (kết quả mới nhất)
+                        Xu hướng dự báo lượng nước
                     </h3>
                     <ResponsiveContainer width="100%" height={200}>
                         <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
@@ -180,14 +278,14 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                             <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '13px' }} />
+                            <RechartsTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '13px' }} />
                             <Area type="monotone" dataKey="waterAmount" stroke="#14b8a6" strokeWidth={2} fill="url(#waterGrad)" name="Lượng nước (mm)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
             )}
 
-            {latestResult && (
+            {historyResults && historyResults.length > 0 && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -198,25 +296,164 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null }> = ({ selec
                                     <th className="text-left px-4 py-3 font-semibold text-slate-600">Độ tin cậy</th>
                                     <th className="text-left px-4 py-3 font-semibold text-slate-600">Loại</th>
                                     <th className="text-left px-4 py-3 font-semibold text-slate-600">Thời gian tưới (s)</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-slate-600">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                <tr className="hover:bg-slate-50/50">
-                                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{new Date(latestResult.createdAt).toLocaleString('vi-VN')}</td>
-                                    <td className="px-4 py-3 font-medium text-slate-800">{latestResult.predictedWaterAmount ?? 0} mm</td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.round(confidence * 100)}%` }} />
-                                            </div>
-                                            <span className="text-xs font-medium text-slate-600">{Math.round(confidence * 100)}%</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3"><span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">{latestResult.predictionType ?? 'WATER_NEED'}</span></td>
-                                    <td className="px-4 py-3 font-medium text-slate-800">{latestResult.predictedDuration ?? '—'} s</td>
-                                </tr>
+                                {historyResults.map((result) => {
+                                    const resConf = result.modelAccuracy ?? result.aiAccuracy ?? 0;
+                                    return (
+                                        <tr key={result.id} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{new Date(result.createdAt).toLocaleString('vi-VN')}</td>
+                                            <td className="px-4 py-3 font-medium text-slate-800">{result.predictedWaterAmount ?? 0} mm</td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.round(resConf * 100)}%` }} />
+                                                    </div>
+                                                    <span className="text-xs font-medium text-slate-600">{Math.round(resConf * 100)}%</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3"><span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">{result.predictionType ?? 'WATER_NEED'}</span></td>
+                                            <td className="px-4 py-3 font-medium text-slate-800">{result.predictedDuration ?? '—'} s</td>
+                                            <td className="px-4 py-3">
+                                                <button
+                                                    onClick={() => setSelectedPrediction(result)}
+                                                    className="text-teal-600 hover:text-teal-700 font-medium text-xs bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg transition-colors"
+                                                >
+                                                    Chi tiết
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Chi tiết AI Params */}
+            {selectedPrediction && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm" onClick={() => setSelectedPrediction(null)}>
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center p-5 border-b border-slate-100">
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                    <Brain className="w-5 h-5 text-teal-600" />
+                                    Chi tiết thông số AI
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1">Dự báo lúc {new Date(selectedPrediction.createdAt).toLocaleString('vi-VN')}</p>
+                            </div>
+                            <button onClick={() => setSelectedPrediction(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            {(() => {
+                                const details = formatAiParams(selectedPrediction.aiParams as Record<string, unknown> | null);
+                                if (!details) return <p className="text-sm text-slate-500">Không có dữ liệu chi tiết JSON params.</p>;
+
+                                return (
+                                    <>
+                                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                                            <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-3">Thông tin Model</h4>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <p className="text-xs text-slate-500">Tên Model</p>
+                                                    <p className="font-medium text-slate-800">{String(details.model)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-500">Phiên bản</p>
+                                                    <p className="font-medium text-slate-800">{String(details.version)}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-3">Chỉ số Nông học (FAO-56)</h4>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="text-sm text-slate-600 border-b border-dashed border-slate-300 cursor-help">ETc (Bốc hơi nước)</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="right">
+                                                                <p>Lượng nước bốc thoát hơi tiềm năng của cây trồng.</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                    <span className="font-medium text-slate-800">{String(details.etc)} mm</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="text-sm text-slate-600 border-b border-dashed border-slate-300 cursor-help">Predicted Depl 24h</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="right">
+                                                                <p>Dự báo mức thâm hụt nước sau 24h tới.</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                    <span className="font-medium text-blue-600">{String(details.predictedDepl24h)} mm</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="text-sm text-slate-600 border-b border-dashed border-slate-300 cursor-help">Soil Moist Deficit</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="right">
+                                                                <p>Độ thâm hụt độ ẩm đất hiện tại so với mức bão hòa.</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                    <span className={`font-medium ${typeof details.soilMoistDeficit === 'number' && details.soilMoistDeficit < 0 ? 'text-red-500' : 'text-slate-800'}`}>
+                                                        {String(details.soilMoistDeficit)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                                                    <span className="text-sm text-slate-600">RAW (Readily Avail.)</span>
+                                                    <span className="font-medium text-slate-800">{details.raw} mm</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                                                    <span className="text-sm text-slate-600">Độ ẩm đất nông (Shallow)</span>
+                                                    <span className="font-medium text-slate-800">{details.shallow}%</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                                                    <span className="text-sm text-slate-600">Độ ẩm đất sâu (Deep)</span>
+                                                    <span className="font-medium text-slate-800">{details.deep}%</span>
+                                                </div>
+                                                {/* Extra features - dynamic */}
+                                                {details.allFeatures && Object.entries(details.allFeatures)
+                                                    .filter(([k]) => !['etc', 'soil_moist_deficit', 'predicted_depl_24h', 'raw',
+                                                        'soil_moist_shallow', 'soil_moist_deep', 'water_mm', 'soil_moist_trend_1h'].includes(k))
+                                                    .map(([key, val]) => (
+                                                        <div key={key} className="flex justify-between items-center py-2 border-b border-slate-50">
+                                                            <span className="text-sm text-slate-600 font-mono text-xs">{key}</span>
+                                                            <span className="font-medium text-slate-700">{String(val)}</span>
+                                                        </div>
+                                                    ))}
+                                                <div className="flex justify-between items-center py-2">
+                                                    <span className="text-sm text-slate-600">Xu hướng độ ẩm 1h</span>
+                                                    <span className="font-medium text-slate-800">{details.soilTrend1h}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center py-2">
+                                                    <span className="text-sm font-semibold text-teal-600">Lượng nước đầu ra (AI Output)</span>
+                                                    <span className="font-bold text-teal-600">{details.waterMm} mm</span>
+                                                </div>                                   </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                            <button onClick={() => setSelectedPrediction(null)} className="px-5 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors">
+                                Đóng
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -302,7 +539,7 @@ const FuzzyLogicTab: React.FC = () => {
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                             <XAxis dataKey="decision" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
-                            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '13px' }} />
+                            <RechartsTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '13px' }} />
                             <Bar dataKey="count" fill="#14b8a6" radius={[8, 8, 0, 0]} name="Số lần" />
                         </BarChart>
                     </ResponsiveContainer>
@@ -394,16 +631,21 @@ const FuzzyLogicTab: React.FC = () => {
 
 const WaterBalanceMonitoringTab: React.FC<{
     selectedDeviceId: number | null;
-    setSelectedDeviceId: (id: number | null) => void;
     devices: UserDeviceListItem[];
     devicesLoading: boolean;
-}> = ({ selectedDeviceId, setSelectedDeviceId, devices, devicesLoading }) => {
-    const { data: waterBalanceState, isLoading: wbLoading } = useQuery({
+}> = ({ selectedDeviceId, devices, devicesLoading }) => {
+    const { data: waterBalanceState, isLoading: wbLoading, error: wbError } = useQuery({
         queryKey: ['waterBalanceState', selectedDeviceId],
         queryFn: () => waterBalanceApi.getWaterBalanceState(selectedDeviceId!),
         enabled: selectedDeviceId !== null,
         retry: false,
     });
+
+    useEffect(() => {
+        if (wbError) {
+            toast.error(getApiErrorMessage(wbError));
+        }
+    }, [wbError]);
 
     if (devicesLoading) {
         return (
@@ -426,6 +668,9 @@ const WaterBalanceMonitoringTab: React.FC<{
     const currentDevice = devices.find(d => d.id === selectedDeviceId);
     const wb = waterBalanceState;
 
+    // Guard: tránh NaN/Infinity khi chia cho 0
+    const safeDiv = (a: number, b: number, fallback = 0) => (b > 0 ? a / b : fallback);
+
     // Chart data for depletion over time
     const depletionChartData = wb?.soilMoisHistory
         ? wb.soilMoisHistory.slice(-7).map((entry: any, idx: number) => ({
@@ -438,37 +683,23 @@ const WaterBalanceMonitoringTab: React.FC<{
 
     return (
         <div className="space-y-6">
-                    {/* Device Selector */}
-            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Chọn thiết bị</label>
-                <select
-                    value={selectedDeviceId || ''}
-                    onChange={(e) => setSelectedDeviceId(Number(e.target.value))}
-                    className="w-full sm:w-auto px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                >
-                    {devices.map((device) => (
-                        <option key={device.id} value={device.id}>
-                            {device.deviceName} ({device.deviceCode})
-                        </option>
-                    ))}
-                </select>
-                {currentDevice && (
-                    <div className="mt-3">
-                        <p className="text-xs text-slate-500 mb-2">
-                            Vị trí: {currentDevice.location || 'Chưa cập nhật'} | 
-                            Cập nhật lần cuối: {wb?.lastUpdated ? new Date(wb.lastUpdated).toLocaleString('vi-VN') : 'Chưa có dữ liệu'}
-                        </p>
-                        {wbLoading && (
-                            <ProgressBar
-                                progress={75}
-                                status="loading"
-                                label="Đang tải dữ liệu water balance"
-                                showPercentage={false}
-                            />
-                        )}
-                    </div>
-                )}
-            </div>
+            {/* Device Detail */}
+            {currentDevice && (
+                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm mb-6">
+                    <p className="text-xs text-slate-500 mb-2">
+                        Vị trí: {currentDevice.location || 'Chưa cập nhật'} |
+                        Cập nhật lần cuối: {wb?.lastUpdated ? new Date(wb.lastUpdated).toLocaleString('vi-VN') : 'Chưa có dữ liệu'}
+                    </p>
+                    {wbLoading && (
+                        <ProgressBar
+                            progress={75}
+                            status="loading"
+                            label="Đang tải dữ liệu water balance"
+                            showPercentage={false}
+                        />
+                    )}
+                </div>
+            )}
 
             {wbLoading ? (
                 <div className="space-y-6">
@@ -491,7 +722,16 @@ const WaterBalanceMonitoringTab: React.FC<{
                                 <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
                                     <Gauge className="w-5 h-5" />
                                 </div>
-                                <span className="text-sm text-slate-500">Weighted Depletion</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="text-sm text-slate-500 border-b border-dashed border-slate-400 cursor-help">Weighted Depletion</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-[280px]">
+                                            <p>Độ suy giảm thể tích nước tổng hợp (lấy trung bình theo độ sâu). Cho biết lượng nước đã biến mất khỏi vùng rễ do bốc thoát hơi nước.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                             <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-bold text-slate-800">{wb.weightedDepletion.toFixed(2)}</span>
@@ -500,15 +740,14 @@ const WaterBalanceMonitoringTab: React.FC<{
                             <div className="mt-2">
                                 <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                                     <div
-                                        className={`h-full rounded-full ${
-                                            wb.weightedDepletion / wb.totalRaw > 0.8 ? 'bg-red-500' :
-                                            wb.weightedDepletion / wb.totalRaw > 0.5 ? 'bg-yellow-500' : 'bg-green-500'
-                                        }`}
-                                        style={{ width: `${Math.min((wb.weightedDepletion / wb.totalRaw) * 100, 100)}%` }}
+                                        className={`h-full rounded-full ${safeDiv(wb.weightedDepletion, wb.totalRaw) > 0.8 ? 'bg-red-500' :
+                                            safeDiv(wb.weightedDepletion, wb.totalRaw) > 0.5 ? 'bg-yellow-500' : 'bg-green-500'
+                                            }`}
+                                        style={{ width: `${Math.min(safeDiv(wb.weightedDepletion, wb.totalRaw) * 100, 100)}%` }}
                                     />
                                 </div>
                                 <p className="text-xs text-slate-400 mt-1">
-                                    {((wb.weightedDepletion / wb.totalRaw) * 100).toFixed(1)}% của RAW
+                                    {(safeDiv(wb.weightedDepletion, wb.totalRaw) * 100).toFixed(1)}% của RAW
                                 </p>
                             </div>
                         </div>
@@ -518,7 +757,16 @@ const WaterBalanceMonitoringTab: React.FC<{
                                 <div className="p-2 rounded-xl bg-teal-50 text-teal-600">
                                     <Droplets className="w-5 h-5" />
                                 </div>
-                                <span className="text-sm text-slate-500">Total TAW</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="text-sm text-slate-500 border-b border-dashed border-slate-400 cursor-help">Total TAW</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-[280px]">
+                                            <p><b>TAW (Tổng nước hữu dụng):</b> Lượng nước tối đa mà đất có thể giữ lại cho cây trồng sử dụng trước khi cây héo vĩnh viễn.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                             <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-bold text-slate-800">{wb.totalTaw.toFixed(2)}</span>
@@ -534,7 +782,16 @@ const WaterBalanceMonitoringTab: React.FC<{
                                 <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
                                     <Target className="w-5 h-5" />
                                 </div>
-                                <span className="text-sm text-slate-500">Total RAW</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="text-sm text-slate-500 border-b border-dashed border-slate-400 cursor-help">Total RAW</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-[280px]">
+                                            <p><b>RAW (Nước dễ lấy):</b> Lượng nước cây trồng có thể dễ dàng hút được mà không bị căng thẳng (stress). Khi lượng nước mất đi vượt qua mức này, cần phải tưới.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                             <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-bold text-slate-800">{wb.totalRaw.toFixed(2)}</span>
@@ -574,7 +831,16 @@ const WaterBalanceMonitoringTab: React.FC<{
                             </h3>
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-slate-600">Depletion:</span>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="text-sm text-slate-600 border-b border-dashed border-slate-300 cursor-help">Depletion:</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-[250px]">
+                                                <p>Lượng nước đã thâm hụt (mất đi) tại lớp đất nông. Nếu con số này vượt qua RAW, cây trồng bắt đầu bị khô héo.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                     <span className="font-medium text-slate-800">{wb.shallowDepletion.toFixed(2)} mm</span>
                                 </div>
                                 <div className="flex justify-between items-center">
@@ -589,11 +855,11 @@ const WaterBalanceMonitoringTab: React.FC<{
                                     <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-blue-500 rounded-full transition-all"
-                                            style={{ width: `${Math.min((wb.shallowDepletion / wb.shallowRaw) * 100, 100)}%` }}
+                                            style={{ width: `${Math.min(safeDiv(wb.shallowDepletion, wb.shallowRaw) * 100, 100)}%` }}
                                         />
                                     </div>
                                     <p className="text-xs text-slate-400 mt-1 text-right">
-                                        {((wb.shallowDepletion / wb.shallowRaw) * 100).toFixed(1)}% depletion
+                                        {(safeDiv(wb.shallowDepletion, wb.shallowRaw) * 100).toFixed(1)}% depletion
                                     </p>
                                 </div>
                             </div>
@@ -607,7 +873,16 @@ const WaterBalanceMonitoringTab: React.FC<{
                             </h3>
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-slate-600">Depletion:</span>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="text-sm text-slate-600 border-b border-dashed border-slate-300 cursor-help">Depletion:</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="max-w-[250px]">
+                                                <p>Lượng nước đã thâm hụt (mất đi) tại lớp đất sâu. Rễ cây chậm phát triển tới lớp này, do đó lượng nước ở mức này dự trữ lâu dài hơn.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                     <span className="font-medium text-slate-800">{wb.deepDepletion.toFixed(2)} mm</span>
                                 </div>
                                 <div className="flex justify-between items-center">
@@ -622,11 +897,11 @@ const WaterBalanceMonitoringTab: React.FC<{
                                     <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-teal-500 rounded-full transition-all"
-                                            style={{ width: `${Math.min((wb.deepDepletion / wb.deepRaw) * 100, 100)}%` }}
+                                            style={{ width: `${Math.min(safeDiv(wb.deepDepletion, wb.deepRaw) * 100, 100)}%` }}
                                         />
                                     </div>
                                     <p className="text-xs text-slate-400 mt-1 text-right">
-                                        {((wb.deepDepletion / wb.deepRaw) * 100).toFixed(1)}% depletion
+                                        {(safeDiv(wb.deepDepletion, wb.deepRaw) * 100).toFixed(1)}% depletion
                                     </p>
                                 </div>
                             </div>
@@ -645,7 +920,7 @@ const WaterBalanceMonitoringTab: React.FC<{
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                     <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
                                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                                    <Tooltip
+                                    <RechartsTooltip
                                         contentStyle={{
                                             backgroundColor: '#fff', border: '1px solid #e2e8f0',
                                             borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '13px',
@@ -679,19 +954,52 @@ const WaterBalanceMonitoringTab: React.FC<{
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     <tr className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 py-3 font-medium text-slate-700">Depletion (mm)</td>
+                                        <td className="px-4 py-3 font-medium text-slate-700">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="border-b border-dashed border-slate-400 cursor-help">Depletion (mm)</span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="right">
+                                                        <p>Lượng nước thâm hụt hiện tại trong đất.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </td>
                                         <td className="px-4 py-3 text-slate-600">{wb.shallowDepletion.toFixed(2)}</td>
                                         <td className="px-4 py-3 text-slate-600">{wb.deepDepletion.toFixed(2)}</td>
                                         <td className="px-4 py-3 font-medium text-slate-800">{wb.weightedDepletion.toFixed(2)}</td>
                                     </tr>
                                     <tr className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 py-3 font-medium text-slate-700">TAW (mm)</td>
+                                        <td className="px-4 py-3 font-medium text-slate-700">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="border-b border-dashed border-slate-400 cursor-help">TAW (mm)</span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="right">
+                                                        <p>Tổng lượng nước hữu dụng trong vùng rễ.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </td>
                                         <td className="px-4 py-3 text-slate-600">{wb.shallowTaw.toFixed(2)}</td>
                                         <td className="px-4 py-3 text-slate-600">{wb.deepTaw.toFixed(2)}</td>
                                         <td className="px-4 py-3 font-medium text-slate-800">{wb.totalTaw.toFixed(2)}</td>
                                     </tr>
                                     <tr className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 py-3 font-medium text-slate-700">RAW (mm)</td>
+                                        <td className="px-4 py-3 font-medium text-slate-700">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="border-b border-dashed border-slate-400 cursor-help">RAW (mm)</span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="right">
+                                                        <p>Lượng nước dễ lấy nhất cho cây trồng.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </td>
                                         <td className="px-4 py-3 text-slate-600">{wb.shallowRaw.toFixed(2)}</td>
                                         <td className="px-4 py-3 text-slate-600">{wb.deepRaw.toFixed(2)}</td>
                                         <td className="px-4 py-3 font-medium text-slate-800">{wb.totalRaw.toFixed(2)}</td>
@@ -715,7 +1023,7 @@ const WaterBalanceMonitoringTab: React.FC<{
 // ============================================
 
 export const PredictionsPage: React.FC = () => {
-    const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
+    const { selectedDeviceId } = useMonitoringDevice();
     const { data: devicesFromApi, isLoading: devicesLoading } = useQuery({
         queryKey: ['myDevices'],
         queryFn: deviceApi.getMyDevices,
@@ -723,9 +1031,8 @@ export const PredictionsPage: React.FC = () => {
     });
     const devices = devicesFromApi ?? [];
 
-    useEffect(() => {
-        if (devices.length > 0 && selectedDeviceId === null) setSelectedDeviceId(devices[0].id);
-    }, [devices, selectedDeviceId]);
+    const currentDevice = devices.find(d => d.id === selectedDeviceId);
+    const isOffline = currentDevice ? currentDevice.status !== 'ONLINE' : false;
 
     return (
         <div className="space-y-8">
@@ -739,20 +1046,6 @@ export const PredictionsPage: React.FC = () => {
                     Đang tải danh sách thiết bị...
                 </div>
             )}
-            {!devicesLoading && devices.length > 0 && (
-                <div className="bg-white rounded-xl p-4 border border-slate-100 flex items-center gap-3">
-                    <label className="text-sm font-medium text-slate-700">Thiết bị:</label>
-                    <select
-                        value={selectedDeviceId ?? ''}
-                        onChange={(e) => setSelectedDeviceId(Number(e.target.value))}
-                        className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                        {devices.map((d) => (
-                            <option key={d.id} value={d.id}>{d.deviceName} ({d.deviceCode})</option>
-                        ))}
-                    </select>
-                </div>
-            )}
             {!devicesLoading && devices.length === 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-slate-700">
                     Không có thiết bị nào. Vui lòng thêm thiết bị để sử dụng dự báo.
@@ -764,24 +1057,17 @@ export const PredictionsPage: React.FC = () => {
                     <Tabs.Trigger value="ml" className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-teal-500 data-[state=active]:text-white data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50">
                         <Brain className="w-4 h-4" /> Dự báo ML
                     </Tabs.Trigger>
-                    <Tabs.Trigger value="fuzzy" className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-teal-500 data-[state=active]:text-white data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50">
-                        <Zap className="w-4 h-4" /> Fuzzy Logic
-                    </Tabs.Trigger>
                     <Tabs.Trigger value="water-balance" className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-teal-500 data-[state=active]:text-white data-[state=active]:shadow-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50">
                         <Gauge className="w-4 h-4" /> FAO-56 Water Balance
                     </Tabs.Trigger>
                 </Tabs.List>
 
                 <Tabs.Content value="ml" className="mt-6">
-                    <MLPredictionsTab selectedDeviceId={selectedDeviceId} />
-                </Tabs.Content>
-                <Tabs.Content value="fuzzy" className="mt-6">
-                    <FuzzyLogicTab />
+                    <MLPredictionsTab selectedDeviceId={selectedDeviceId} isOffline={isOffline} />
                 </Tabs.Content>
                 <Tabs.Content value="water-balance" className="mt-6">
                     <WaterBalanceMonitoringTab
                         selectedDeviceId={selectedDeviceId}
-                        setSelectedDeviceId={setSelectedDeviceId}
                         devices={devices}
                         devicesLoading={devicesLoading}
                     />

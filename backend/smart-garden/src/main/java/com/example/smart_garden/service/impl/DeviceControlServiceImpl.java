@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Implementation của DeviceControlService.
@@ -57,27 +58,48 @@ public class DeviceControlServiceImpl implements DeviceControlService {
 
         control = deviceControlRepository.save(control);
 
-        // Gửi command qua MQTT và chờ ACK (timeout/retry)
         String mqttCmd = toMqttCommand(request.controlType(), request.action());
         Integer setpoint = null; // SET_SETPOINT có thể bổ sung qua API riêng
         if (mqttCmd != null) {
-            boolean ackOk = mqttCommandSender.sendAndWaitAck(device.getDeviceCode(), mqttCmd, setpoint);
-            control.setStatus(ackOk ? ControlStatus.EXECUTED : ControlStatus.FAILED);
-            if (ackOk) control.setExecutedAt(LocalDateTime.now());
-            deviceControlRepository.save(control);
+            control.setStatus(ControlStatus.PENDING);
+            control = deviceControlRepository.save(control); // Save as PENDING first
+
+            final Long controlId = control.getId();
+            final String deviceCode = device.getDeviceCode();
+
+            // Thực thi async không block luồng API HTTP (Kỹ thuật Blynk)
+            CompletableFuture.runAsync(() -> {
+                try {
+                    boolean ackOk = mqttCommandSender.sendAndWaitAck(deviceCode, mqttCmd, setpoint);
+                    updateControlStatus(controlId, ackOk ? "EXECUTED" : "FAILED");
+                } catch (Exception e) {
+                    log.error("Error executing async control command {}", controlId, e);
+                    updateControlStatus(controlId, "FAILED");
+                }
+            });
         }
 
-        log.info("Created control command: {} for device: {}, status={}", control.getId(), device.getDeviceCode(), control.getStatus());
+        log.info("Created control command: {} for device: {}, status={}", control.getId(), device.getDeviceCode(),
+                control.getStatus());
         return deviceControlMapper.toListItem(control);
     }
 
     /**
-     * Map REST control type/action sang MQTT cmd: PUMP_ON, PUMP_OFF, AUTO, SET_SETPOINT.
+     * Map REST control type/action sang MQTT cmd: PUMP_ON, PUMP_OFF, AUTO,
+     * SET_SETPOINT.
      */
     private String toMqttCommand(ControlType controlType, ControlAction action) {
         if (controlType == ControlType.PUMP) {
-            if (action == ControlAction.ON) return "PUMP_ON";
-            if (action == ControlAction.OFF) return "PUMP_OFF";
+            if (action == ControlAction.ON)
+                return "PUMP_ON";
+            if (action == ControlAction.OFF)
+                return "PUMP_OFF";
+        }
+        if (controlType == ControlType.LED) {
+            if (action == ControlAction.ON)
+                return "LIGHT_ON";
+            if (action == ControlAction.OFF)
+                return "LIGHT_OFF";
         }
         if (controlType == ControlType.SYSTEM && action == ControlAction.OFF) {
             return "AUTO"; // Chuyển về auto mode

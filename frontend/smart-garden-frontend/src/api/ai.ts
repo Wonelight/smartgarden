@@ -28,9 +28,9 @@ export interface MlPredictionDetailResponse {
     predictionHorizon: number | null;
     modelAccuracy: number | null;
     featuresUsed: Record<string, unknown> | null;
-    anfisOutput: number | null;
-    anfisParams: Record<string, unknown> | null;
-    anfisAccuracy: number | null;
+    aiOutput: number | null;
+    aiParams: Record<string, unknown> | null;
+    aiAccuracy: number | null;
     createdAt: string;
 }
 
@@ -50,6 +50,14 @@ export const aiApi = {
     getLatestResult: async (deviceId: number): Promise<MlPredictionDetailResponse> => {
         const response = await apiClient.get<ApiResponse<MlPredictionDetailResponse>>(
             `/ai/results/${deviceId}`
+        );
+        return response.data.data!;
+    },
+
+    /** Get history of AI/ML prediction results for a device */
+    getHistory: async (deviceId: number): Promise<MlPredictionDetailResponse[]> => {
+        const response = await apiClient.get<ApiResponse<MlPredictionDetailResponse[]>>(
+            `/ai/results/history/${deviceId}`
         );
         return response.data.data!;
     },

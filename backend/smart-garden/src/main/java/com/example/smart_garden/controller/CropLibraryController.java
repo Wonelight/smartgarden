@@ -57,4 +57,10 @@ public class CropLibraryController {
         cropLibraryService.adminDeleteCropLibrary(id);
         return ApiResponse.ok(null);
     }
+
+    @PreAuthorize("hasAnyRole(T(com.example.smart_garden.security.RbacRoles).ADMIN, T(com.example.smart_garden.security.RbacRoles).USER)")
+    @GetMapping("/crop-libraries")
+    public ApiResponse<List<CropLibraryListItemResponse>> getAllCropLibraries() {
+        return ApiResponse.ok(cropLibraryService.adminGetAllCropLibraries());
+    }
 }

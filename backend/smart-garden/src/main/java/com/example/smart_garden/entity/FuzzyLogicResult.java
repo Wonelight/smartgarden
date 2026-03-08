@@ -53,11 +53,11 @@ public class FuzzyLogicResult extends BaseEntity {
         @Column(name = "timestamp", updatable = false)
         private LocalDateTime timestamp;
 
-        @Column(name = "anfis_refined_duration")
-        private Integer anfisRefinedDuration;
+        @Column(name = "ai_refined_duration")
+        private Integer aiRefinedDuration;
 
-        @Column(name = "anfis_confidence")
-        private Float anfisConfidence;
+        @Column(name = "ai_confidence")
+        private Float aiConfidence;
 
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "ml_prediction_id")

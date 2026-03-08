@@ -8,14 +8,17 @@ import java.time.LocalDateTime;
  * Chi tiết device cho user.
  */
 public record UserDeviceDetailResponse(
-        Long id,
-        String deviceName,
-        String deviceCode,
-        String location,
-        Double latitude,
-        Double longitude,
-        Double altitude,
-        DeviceStatus status,
-        String firmwareVersion,
-        LocalDateTime lastOnline) {
+                Long id,
+                String deviceName,
+                String deviceCode,
+                String location,
+                Double latitude,
+                Double longitude,
+                Double altitude,
+                DeviceStatus status,
+                String firmwareVersion,
+                LocalDateTime lastOnline,
+                Double gardenArea,
+                Long defaultCropId,
+                Long defaultSoilId) {
 }

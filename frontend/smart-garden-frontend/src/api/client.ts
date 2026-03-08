@@ -23,6 +23,18 @@ let failedQueue: Array<{
 /** Tránh toast trùng khi nhiều request cùng lúc 401/403 → redirect login */
 let isRedirectingToLogin = false;
 
+/** Debounce toast lỗi: lưu timestamp lần cuối hiển thị theo message (5s window) */
+const toastDebounceMap = new Map<string, number>();
+const TOAST_DEBOUNCE_MS = 5000;
+
+function toastErrorOnce(message: string) {
+    const now = Date.now();
+    const last = toastDebounceMap.get(message) ?? 0;
+    if (now - last < TOAST_DEBOUNCE_MS) return;
+    toastDebounceMap.set(message, now);
+    toast.error(message);
+}
+
 const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
 
 const processQueue = (newToken: string | null, err: unknown = null) => {
@@ -148,13 +160,17 @@ apiClient.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        const errorCode = getApiErrorCode(error);
+
         // Lỗi validation (9002): không toast ở đây để trang có thể hiển thị lỗi theo từng trường
-        if (getApiErrorCode(error) === 9002) {
+        // Lỗi 7002 (Không có dữ liệu cảm biến): bỏ qua toast vì quá trình pooling gọi API này liên tục
+        if (errorCode === 9002 || errorCode === 7002) {
             return Promise.reject(error);
         }
 
         // Hiển thị thông báo lỗi từ BE cho mọi lỗi còn lại (4xx, 5xx, network)
-        toast.error(getApiErrorMessage(error));
+        // Dùng toastErrorOnce để tránh x2/x3 toast cùng nội dung khi nhiều request đồng thời thất bại
+        toastErrorOnce(getApiErrorMessage(error));
         return Promise.reject(error);
     }
 );

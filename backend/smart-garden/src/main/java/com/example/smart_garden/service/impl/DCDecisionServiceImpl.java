@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -74,12 +76,24 @@ public class DCDecisionServiceImpl implements DCDecisionService {
             dcValue = latestBalance.get().getDcValue();
         }
 
-        // 4. Get latest sensor soil moisture
+        // 4. Get sensor soil moisture — aggregated AVG 30min to reduce noise
         double sensorMoisture = 50.0; // default
-        Optional<SensorData> latestSensor = sensorDataRepository
-                .findFirstByDeviceIdOrderByTimestampDesc(deviceId);
-        if (latestSensor.isPresent() && latestSensor.get().getSoilMoisture() != null) {
-            sensorMoisture = latestSensor.get().getSoilMoisture();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime windowStart = now.minusMinutes(30);
+        List<Object[]> aggRows = sensorDataRepository
+                .findAggregatedSensorByDeviceIdAndTimeRange(deviceId, windowStart, now);
+        if (!aggRows.isEmpty() && aggRows.get(0) != null) {
+            Object avgSoil = aggRows.get(0)[3]; // avg_soil1
+            if (avgSoil instanceof Number) {
+                sensorMoisture = ((Number) avgSoil).doubleValue();
+            }
+        } else {
+            // Fallback: bản ghi gần nhất
+            Optional<SensorData> latestSensor = sensorDataRepository
+                    .findFirstByDeviceIdOrderByTimestampDesc(deviceId);
+            if (latestSensor.isPresent() && latestSensor.get().getSoilMoisture() != null) {
+                sensorMoisture = latestSensor.get().getSoilMoisture();
+            }
         }
 
         // 5. Calculate thresholds

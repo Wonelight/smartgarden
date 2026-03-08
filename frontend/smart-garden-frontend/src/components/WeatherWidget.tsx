@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudSun, RefreshCw, MapPin, ExternalLink, Loader2 } from 'lucide-react';
+import { CloudSun, RefreshCw, MapPin, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { weatherApi } from '../api/weather';
 import { toast } from 'sonner';

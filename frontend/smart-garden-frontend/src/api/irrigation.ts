@@ -16,6 +16,8 @@ export interface IrrigationConfigDetailResponse {
     fuzzyEnabled: boolean | null;
     autoMode: boolean | null;
     aiEnabled: boolean | null;
+    pumpFlowRate: number | null;
+    nozzleCount: number | null;
     updatedAt: string | null;
 }
 
@@ -41,6 +43,9 @@ export interface UserPartialUpdateIrrigationConfigRequest {
     irrigationDurationMax?: number;
     fuzzyEnabled?: boolean;
     autoMode?: boolean;
+    aiEnabled?: boolean;
+    pumpFlowRate?: number;
+    nozzleCount?: number;
 }
 
 export const irrigationApi = {

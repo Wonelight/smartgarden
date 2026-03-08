@@ -8,15 +8,15 @@ import java.time.LocalDateTime;
  * Chi tiết kết quả fuzzy.
  */
 public record FuzzyLogicResultDetailResponse(
-                Long id,
-                Long deviceId,
-                Long sensorDataId,
-                Float fuzzyOutput,
-                IrrigationDecision irrigationDecision,
-                Integer irrigationDuration,
-                Float confidenceScore,
-                Integer anfisRefinedDuration,
-                Float anfisConfidence,
-                Long mlPredictionId,
-                LocalDateTime timestamp) {
+        Long id,
+        Long deviceId,
+        Long sensorDataId,
+        Float fuzzyOutput,
+        IrrigationDecision irrigationDecision,
+        Integer irrigationDuration,
+        Float confidenceScore,
+        Integer aiRefinedDuration,
+        Float aiConfidence,
+        Long mlPredictionId,
+        LocalDateTime timestamp) {
 }

@@ -17,7 +17,7 @@ export function useOptimisticMutation<TData, TVariables, TContext = unknown>({
     ...options
 }: {
     mutationFn: (variables: TVariables) => Promise<TData>;
-    queryKey: string | string[];
+    queryKey: readonly unknown[];
     optimisticUpdate?: (variables: TVariables, oldData: unknown) => unknown;
     successMessage?: string | ((data: TData) => string);
     errorMessage?: string | ((error: Error) => string);
@@ -28,51 +28,41 @@ export function useOptimisticMutation<TData, TVariables, TContext = unknown>({
         mutationFn,
         onMutate: async (variables) => {
             // Cancel outgoing refetches
-            const queryKeys = Array.isArray(queryKey) ? queryKey : [queryKey];
-            await Promise.all(
-                queryKeys.map((key) => queryClient.cancelQueries({ queryKey: key }))
-            );
+            await queryClient.cancelQueries({ queryKey });
 
             // Snapshot previous value
-            const previousData = queryKeys.map((key) => queryClient.getQueryData(key));
+            const previousData = queryClient.getQueryData(queryKey);
 
             // Optimistically update
             if (optimisticUpdate) {
-                queryKeys.forEach((key, index) => {
-                    const oldData = previousData[index];
-                    const newData = optimisticUpdate(variables, oldData);
-                    queryClient.setQueryData(key, newData);
-                });
+                const newData = optimisticUpdate(variables, previousData);
+                queryClient.setQueryData(queryKey, newData);
             }
 
             // Custom onMutate
+            // @ts-ignore
             const context = onMutate ? await onMutate(variables) : undefined;
 
             return { previousData, context } as TContext;
         },
         onError: (error, variables, context) => {
             // Rollback on error
-            const queryKeys = Array.isArray(queryKey) ? queryKey : [queryKey];
-            const ctx = context as { previousData: unknown[] } | undefined;
-            if (ctx?.previousData) {
-                queryKeys.forEach((key, index) => {
-                    queryClient.setQueryData(key, ctx.previousData[index]);
-                });
+            const ctx = context as { previousData: unknown } | undefined;
+            if (ctx?.previousData !== undefined) {
+                queryClient.setQueryData(queryKey, ctx.previousData);
             }
 
             const message = typeof errorMessage === 'function' ? errorMessage(error) : errorMessage || 'Có lỗi xảy ra';
             toast.error(message);
 
             if (onError) {
+                // @ts-ignore
                 onError(error, variables, context);
             }
         },
         onSuccess: (data, variables, context) => {
             // Invalidate to refetch fresh data
-            const queryKeys = Array.isArray(queryKey) ? queryKey : [queryKey];
-            queryKeys.forEach((key) => {
-                queryClient.invalidateQueries({ queryKey: key });
-            });
+            queryClient.invalidateQueries({ queryKey });
 
             const message = typeof successMessage === 'function' ? successMessage(data) : successMessage;
             if (message) {
@@ -80,17 +70,16 @@ export function useOptimisticMutation<TData, TVariables, TContext = unknown>({
             }
 
             if (onSuccess) {
+                // @ts-ignore
                 onSuccess(data, variables, context);
             }
         },
         onSettled: (data, error, variables, context) => {
             // Always refetch after mutation
-            const queryKeys = Array.isArray(queryKey) ? queryKey : [queryKey];
-            queryKeys.forEach((key) => {
-                queryClient.invalidateQueries({ queryKey: key });
-            });
+            queryClient.invalidateQueries({ queryKey });
 
             if (onSettled) {
+                // @ts-ignore
                 onSettled(data, error, variables, context);
             }
         },

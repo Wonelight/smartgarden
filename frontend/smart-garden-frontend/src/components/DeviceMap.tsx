@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polygon, Rectangle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Rectangle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Wifi, WifiOff, AlertCircle, LocateFixed, Loader2 } from 'lucide-react';
@@ -102,7 +102,7 @@ const myLocationIcon = L.divIcon({
 });
 
 // Component to fit map bounds to show all markers (only on initial load)
-const MapBoundsFitter: React.FC<{ 
+const MapBoundsFitter: React.FC<{
     devices: UserDeviceListItem[];
     skipIfSelected?: boolean;
 }> = ({ devices, skipIfSelected = false }) => {
@@ -174,12 +174,12 @@ const GardenAreaZoomer: React.FC<{
             return;
         }
 
-        const bounds = device.gardenBounds || 
+        const bounds = device.gardenBounds ||
             calculateGardenBounds(device.latitude, device.longitude);
 
         const rectangleBounds = L.latLngBounds(
-            [[bounds.south, bounds.west]],
-            [[bounds.north, bounds.east]]
+            [bounds.south, bounds.west],
+            [bounds.north, bounds.east]
         );
 
         // Zoom to fit the garden area with padding
@@ -294,11 +294,10 @@ export const DeviceMap: React.FC<DeviceMapProps> = ({
                 type="button"
                 onClick={handleToggleMyLocation}
                 disabled={locationLoading}
-                className={`absolute top-3 right-3 z-[1000] flex items-center gap-2 px-3 py-2 rounded-xl border shadow-md text-sm font-medium transition-all ${
-                    showMyLocationPin
+                className={`absolute top-3 right-3 z-[1000] flex items-center gap-2 px-3 py-2 rounded-xl border shadow-md text-sm font-medium transition-all ${showMyLocationPin
                         ? 'bg-blue-500 text-white border-blue-600 hover:bg-blue-600'
                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
+                    }`}
                 title={showMyLocationPin ? 'Ẩn vị trí của bạn' : 'Hiện vị trí của bạn'}
             >
                 {locationLoading ? (
@@ -326,18 +325,18 @@ export const DeviceMap: React.FC<DeviceMapProps> = ({
                 />
                 <MapBoundsFitter devices={devices} skipIfSelected={selectedDeviceId !== null} />
                 <FlyToMyLocation myLocation={myLocation} active={showMyLocationPin} />
-                <GardenAreaZoomer 
+                <GardenAreaZoomer
                     deviceId={selectedDeviceId}
                     devices={devicesWithCoords}
                 />
-                
+
                 {/* Render garden area polygons for selected device */}
                 {devicesWithCoords.map((device) => {
                     if (selectedDeviceId !== device.id) return null;
-                    
-                    const bounds = device.gardenBounds || 
+
+                    const bounds = device.gardenBounds ||
                         calculateGardenBounds(device.latitude!, device.longitude!);
-                    
+
                     const rectangleBounds: [[number, number], [number, number]] = [
                         [bounds.south, bounds.west],
                         [bounds.north, bounds.east],
@@ -438,19 +437,18 @@ export const DeviceMap: React.FC<DeviceMapProps> = ({
                                 )}
                                 <div className="mt-2 pt-2 border-t border-slate-200">
                                     <span
-                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                            device.status === 'ONLINE'
+                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${device.status === 'ONLINE'
                                                 ? 'bg-emerald-100 text-emerald-700'
                                                 : device.status === 'OFFLINE'
-                                                ? 'bg-slate-100 text-slate-600'
-                                                : 'bg-red-100 text-red-700'
-                                        }`}
+                                                    ? 'bg-slate-100 text-slate-600'
+                                                    : 'bg-red-100 text-red-700'
+                                            }`}
                                     >
                                         {device.status === 'ONLINE'
                                             ? 'Trực tuyến'
                                             : device.status === 'OFFLINE'
-                                            ? 'Ngoại tuyến'
-                                            : 'Lỗi'}
+                                                ? 'Ngoại tuyến'
+                                                : 'Lỗi'}
                                     </span>
                                 </div>
                                 <div className="mt-2 pt-2 border-t border-slate-200">

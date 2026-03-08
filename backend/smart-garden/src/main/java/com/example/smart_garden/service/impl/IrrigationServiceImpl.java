@@ -40,10 +40,10 @@ public class IrrigationServiceImpl implements IrrigationService {
     // ================== IRRIGATION CONFIG ==================
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public IrrigationConfigDetailResponse getConfigByDeviceId(Long deviceId) {
         IrrigationConfig config = irrigationConfigRepository.findByDeviceId(deviceId)
-                .orElseThrow(() -> new AppException(ErrorCode.IRRIGATION_CONFIG_NOT_FOUND));
+                .orElseGet(() -> createDefaultConfig(deviceId));
         return irrigationMapper.toConfigDetail(config);
     }
 
@@ -66,6 +66,18 @@ public class IrrigationServiceImpl implements IrrigationService {
         }
         if (request.autoMode() != null) {
             config.setAutoMode(request.autoMode());
+        }
+        if (request.fuzzyEnabled() != null) {
+            config.setFuzzyEnabled(request.fuzzyEnabled());
+        }
+        if (request.aiEnabled() != null) {
+            config.setAiEnabled(request.aiEnabled());
+        }
+        if (request.pumpFlowRate() != null) {
+            config.setPumpFlowRate(request.pumpFlowRate());
+        }
+        if (request.nozzleCount() != null) {
+            config.setNozzleCount(request.nozzleCount());
         }
 
         config = irrigationConfigRepository.save(config);
@@ -114,6 +126,12 @@ public class IrrigationServiceImpl implements IrrigationService {
         if (request.aiEnabled() != null) {
             config.setAiEnabled(request.aiEnabled());
         }
+        if (request.pumpFlowRate() != null) {
+            config.setPumpFlowRate(request.pumpFlowRate());
+        }
+        if (request.nozzleCount() != null) {
+            config.setNozzleCount(request.nozzleCount());
+        }
 
         config = irrigationConfigRepository.save(config);
         log.info("Admin updated irrigation config for device: {}", deviceId);
@@ -122,6 +140,50 @@ public class IrrigationServiceImpl implements IrrigationService {
     }
 
     // ================== IRRIGATION HISTORY ==================
+
+    @Override
+    @Transactional
+    public void ingestHistoryFromMqtt(String deviceCode,
+            com.example.smart_garden.mqtt.payload.MqttIrrigationHistoryPayload payload) {
+        Device device = deviceRepository.findByDeviceCode(deviceCode)
+                .orElse(null);
+        if (device == null) {
+            log.warn("Ingest history: device {} not found", deviceCode);
+            return;
+        }
+
+        com.example.smart_garden.entity.enums.IrrigationMode mappedMode = com.example.smart_garden.entity.enums.IrrigationMode.MANUAL;
+        if (payload.getMode() != null && payload.getMode().startsWith("AUTO")) {
+            mappedMode = com.example.smart_garden.entity.enums.IrrigationMode.AUTO;
+        }
+
+        // Tính waterVolume từ duration × pumpFlowRate × nozzleCount (ESP32 không gửi waterVolume)
+        float flowRate = irrigationConfigRepository.findByDeviceId(device.getId())
+                .map(c -> c.getPumpFlowRate() != null ? c.getPumpFlowRate() : 0.5f)
+                .orElse(0.5f);
+        int nozzles = irrigationConfigRepository.findByDeviceId(device.getId())
+                .map(c -> c.getNozzleCount() != null ? c.getNozzleCount() : 1)
+                .orElse(1);
+        float computedWaterVolume = payload.getDuration() / 60.0f * flowRate * nozzles;
+
+        IrrigationHistory history = IrrigationHistory.builder()
+                .device(device)
+                .irrigationMode(mappedMode)
+                .duration(payload.getDuration())
+                .waterVolume(computedWaterVolume)
+                .startTime(LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(payload.getStartTime()),
+                        java.time.ZoneId.systemDefault()))
+                .endTime(LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(payload.getEndTime()),
+                        java.time.ZoneId.systemDefault()))
+                .soilMoistureBefore(payload.getSoilMoistureBefore())
+                .soilMoistureAfter(payload.getSoilMoistureAfter())
+                .status(com.example.smart_garden.entity.enums.IrrigationHistoryStatus.COMPLETED)
+                .build();
+
+        irrigationHistoryRepository.save(history);
+        log.info("Ingested irrigation history: device={}, duration={}s, vol={}L", deviceCode, payload.getDuration(),
+                payload.getWaterVolume());
+    }
 
     @Override
     @Transactional(readOnly = true)

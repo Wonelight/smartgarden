@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Sprout, Search, Plus, Pencil, Trash2, X, Loader2, Save, BookOpen, ExternalLink, Info
+    Sprout, Search, Plus, Pencil, Trash2, X, Loader2, BookOpen, ExternalLink, Info
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -108,7 +108,7 @@ const CropDocumentationPanel: React.FC<{
                     <div>
                         <h4 className="text-base font-semibold text-slate-800 mb-2">Giới thiệu</h4>
                         <p className="text-sm text-slate-600 leading-relaxed">
-                            Hệ số cây trồng (Crop Coefficient - Kc) là một tham số quan trọng trong tính toán nhu cầu nước tưới cho cây trồng. 
+                            Hệ số cây trồng (Crop Coefficient - Kc) là một tham số quan trọng trong tính toán nhu cầu nước tưới cho cây trồng.
                             Các giá trị này được xác định dựa trên nghiên cứu của Tổ chức Nông lương Liên Hợp Quốc (FAO) và các tổ chức nghiên cứu uy tín khác.
                         </p>
                     </div>
@@ -125,7 +125,7 @@ const CropDocumentationPanel: React.FC<{
                                     <div className="flex-1">
                                         <h5 className="font-medium text-slate-800 mb-1">Kc Initial (Kc ini)</h5>
                                         <p className="text-sm text-slate-600">
-                                            Hệ số cây trồng ở giai đoạn đầu (initial stage) - từ khi gieo trồng đến khi cây trồng phủ khoảng 10% diện tích đất. 
+                                            Hệ số cây trồng ở giai đoạn đầu (initial stage) - từ khi gieo trồng đến khi cây trồng phủ khoảng 10% diện tích đất.
                                             Giá trị thường từ 0.3 đến 0.5, phụ thuộc vào độ ẩm đất và tần suất tưới.
                                         </p>
                                     </div>
@@ -139,7 +139,7 @@ const CropDocumentationPanel: React.FC<{
                                     <div className="flex-1">
                                         <h5 className="font-medium text-slate-800 mb-1">Kc Mid (Kc mid)</h5>
                                         <p className="text-sm text-slate-600">
-                                            Hệ số cây trồng ở giai đoạn giữa (mid-season stage) - khi cây trồng đạt độ che phủ tối đa và phát triển mạnh nhất. 
+                                            Hệ số cây trồng ở giai đoạn giữa (mid-season stage) - khi cây trồng đạt độ che phủ tối đa và phát triển mạnh nhất.
                                             Giá trị thường từ 0.9 đến 1.3, đây là giai đoạn cây trồng cần nước nhiều nhất.
                                         </p>
                                     </div>
@@ -153,7 +153,7 @@ const CropDocumentationPanel: React.FC<{
                                     <div className="flex-1">
                                         <h5 className="font-medium text-slate-800 mb-1">Kc End (Kc end)</h5>
                                         <p className="text-sm text-slate-600">
-                                            Hệ số cây trồng ở giai đoạn cuối (late season stage) - từ khi cây trồng bắt đầu chín đến thu hoạch. 
+                                            Hệ số cây trồng ở giai đoạn cuối (late season stage) - từ khi cây trồng bắt đầu chín đến thu hoạch.
                                             Giá trị thường từ 0.5 đến 0.9, giảm dần khi cây trồng già và chuẩn bị thu hoạch.
                                         </p>
                                     </div>
@@ -169,28 +169,28 @@ const CropDocumentationPanel: React.FC<{
                             <div className="border border-slate-200 rounded-lg p-4">
                                 <h5 className="font-medium text-slate-800 mb-2">Initial Stage</h5>
                                 <p className="text-sm text-slate-600">
-                                    Giai đoạn đầu: Từ khi gieo trồng đến khi cây trồng phủ khoảng 10% diện tích đất. 
+                                    Giai đoạn đầu: Từ khi gieo trồng đến khi cây trồng phủ khoảng 10% diện tích đất.
                                     Thời gian thường từ 10-30 ngày tùy loại cây trồng.
                                 </p>
                             </div>
                             <div className="border border-slate-200 rounded-lg p-4">
                                 <h5 className="font-medium text-slate-800 mb-2">Development Stage</h5>
                                 <p className="text-sm text-slate-600">
-                                    Giai đoạn phát triển: Cây trồng phát triển nhanh, độ che phủ tăng từ 10% đến gần 100%. 
+                                    Giai đoạn phát triển: Cây trồng phát triển nhanh, độ che phủ tăng từ 10% đến gần 100%.
                                     Thời gian thường từ 20-40 ngày.
                                 </p>
                             </div>
                             <div className="border border-slate-200 rounded-lg p-4">
                                 <h5 className="font-medium text-slate-800 mb-2">Mid-Season Stage</h5>
                                 <p className="text-sm text-slate-600">
-                                    Giai đoạn giữa: Cây trồng đạt độ che phủ tối đa và phát triển mạnh nhất. 
+                                    Giai đoạn giữa: Cây trồng đạt độ che phủ tối đa và phát triển mạnh nhất.
                                     Đây là giai đoạn cần nước nhiều nhất. Thời gian thường từ 30-60 ngày.
                                 </p>
                             </div>
                             <div className="border border-slate-200 rounded-lg p-4">
                                 <h5 className="font-medium text-slate-800 mb-2">Late Season Stage</h5>
                                 <p className="text-sm text-slate-600">
-                                    Giai đoạn cuối: Cây trồng bắt đầu chín và chuẩn bị thu hoạch. 
+                                    Giai đoạn cuối: Cây trồng bắt đầu chín và chuẩn bị thu hoạch.
                                     Nhu cầu nước giảm dần. Thời gian thường từ 10-30 ngày.
                                 </p>
                             </div>
@@ -201,7 +201,7 @@ const CropDocumentationPanel: React.FC<{
                     <div>
                         <h4 className="text-base font-semibold text-slate-800 mb-3">Độ sâu rễ tối đa (Maximum Root Depth)</h4>
                         <p className="text-sm text-slate-600 mb-3">
-                            Độ sâu rễ tối đa là độ sâu mà hệ thống rễ của cây trồng có thể phát triển đến. 
+                            Độ sâu rễ tối đa là độ sâu mà hệ thống rễ của cây trồng có thể phát triển đến.
                             Giá trị này quan trọng trong việc tính toán lượng nước có sẵn trong đất và nhu cầu tưới.
                         </p>
                         <div className="bg-slate-50 rounded-lg p-4">
@@ -217,7 +217,7 @@ const CropDocumentationPanel: React.FC<{
                     <div>
                         <h4 className="text-base font-semibold text-slate-800 mb-3">Tỷ lệ cạn kiệt (Depletion Fraction - p)</h4>
                         <p className="text-sm text-slate-600 mb-3">
-                            Tỷ lệ cạn kiệt là phần trăm độ ẩm đất có thể sử dụng được mà cây trồng có thể sử dụng trước khi bắt đầu bị stress do thiếu nước. 
+                            Tỷ lệ cạn kiệt là phần trăm độ ẩm đất có thể sử dụng được mà cây trồng có thể sử dụng trước khi bắt đầu bị stress do thiếu nước.
                             Giá trị này phụ thuộc vào loại cây trồng và điều kiện môi trường.
                         </p>
                         <div className="bg-slate-50 rounded-lg p-4">
@@ -701,8 +701,8 @@ export const CropLibraryPage: React.FC = () => {
                                     duration={1500}
                                     label={
                                         createCropMutation.isPending ? 'Đang tạo cây trồng...' :
-                                        updateCropMutation.isPending ? 'Đang cập nhật cây trồng...' :
-                                        'Đang xóa cây trồng...'
+                                            updateCropMutation.isPending ? 'Đang cập nhật cây trồng...' :
+                                                'Đang xóa cây trồng...'
                                     }
                                 />
                             </div>
@@ -726,9 +726,9 @@ export const CropLibraryPage: React.FC = () => {
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
                         <div className="relative mb-6 pb-4 border-b border-slate-200">
                             <button
-                                onClick={() => { 
-                                    setShowCreateModal(false); 
-                                    setShowEditModal(false); 
+                                onClick={() => {
+                                    setShowCreateModal(false);
+                                    setShowEditModal(false);
                                     setFormData({});
                                     setFormErrors({});
                                 }}
@@ -749,11 +749,10 @@ export const CropLibraryPage: React.FC = () => {
                                     onChange={e => handleFieldChange('name', e.target.value)}
                                     onBlur={e => handleFieldBlur('name', e.target.value)}
                                     placeholder="VD: Lúa nước"
-                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                        formErrors.name 
-                                            ? 'border-red-300 focus:border-red-400' 
+                                    className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.name
+                                            ? 'border-red-300 focus:border-red-400'
                                             : 'border-slate-200 focus:border-teal-400'
-                                    }`}
+                                        }`}
                                 />
                                 {formErrors.name && (
                                     <p className="mt-1 text-xs text-red-600">{formErrors.name}</p>
@@ -772,11 +771,10 @@ export const CropLibraryPage: React.FC = () => {
                                             onChange={e => handleFieldChange('kcIni', e.target.value ? parseFloat(e.target.value) : '')}
                                             onBlur={e => handleFieldBlur('kcIni', e.target.value ? parseFloat(e.target.value) : '')}
                                             placeholder="0.4"
-                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${
-                                                formErrors.kcIni 
-                                                    ? 'border-red-300 focus:border-red-400' 
+                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${formErrors.kcIni
+                                                    ? 'border-red-300 focus:border-red-400'
                                                     : 'border-slate-200 focus:border-teal-400'
-                                            }`}
+                                                }`}
                                         />
                                         {formErrors.kcIni && (
                                             <p className="mt-1 text-xs text-red-600">{formErrors.kcIni}</p>
@@ -791,11 +789,10 @@ export const CropLibraryPage: React.FC = () => {
                                             onChange={e => handleFieldChange('kcMid', e.target.value ? parseFloat(e.target.value) : '')}
                                             onBlur={e => handleFieldBlur('kcMid', e.target.value ? parseFloat(e.target.value) : '')}
                                             placeholder="1.2"
-                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${
-                                                formErrors.kcMid 
-                                                    ? 'border-red-300 focus:border-red-400' 
+                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${formErrors.kcMid
+                                                    ? 'border-red-300 focus:border-red-400'
                                                     : 'border-slate-200 focus:border-teal-400'
-                                            }`}
+                                                }`}
                                         />
                                         {formErrors.kcMid && (
                                             <p className="mt-1 text-xs text-red-600">{formErrors.kcMid}</p>
@@ -810,11 +807,10 @@ export const CropLibraryPage: React.FC = () => {
                                             onChange={e => handleFieldChange('kcEnd', e.target.value ? parseFloat(e.target.value) : '')}
                                             onBlur={e => handleFieldBlur('kcEnd', e.target.value ? parseFloat(e.target.value) : '')}
                                             placeholder="0.6"
-                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${
-                                                formErrors.kcEnd 
-                                                    ? 'border-red-300 focus:border-red-400' 
+                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${formErrors.kcEnd
+                                                    ? 'border-red-300 focus:border-red-400'
                                                     : 'border-slate-200 focus:border-teal-400'
-                                            }`}
+                                                }`}
                                         />
                                         {formErrors.kcEnd && (
                                             <p className="mt-1 text-xs text-red-600">{formErrors.kcEnd}</p>
@@ -834,11 +830,10 @@ export const CropLibraryPage: React.FC = () => {
                                             onChange={e => handleFieldChange('stageIniDays', e.target.value ? parseInt(e.target.value) : '')}
                                             onBlur={e => handleFieldBlur('stageIniDays', e.target.value ? parseInt(e.target.value) : '')}
                                             placeholder="20"
-                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${
-                                                formErrors.stageIniDays 
-                                                    ? 'border-red-300 focus:border-red-400' 
+                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${formErrors.stageIniDays
+                                                    ? 'border-red-300 focus:border-red-400'
                                                     : 'border-slate-200 focus:border-teal-400'
-                                            }`}
+                                                }`}
                                         />
                                         {formErrors.stageIniDays && (
                                             <p className="mt-1 text-xs text-red-600">{formErrors.stageIniDays}</p>
@@ -852,11 +847,10 @@ export const CropLibraryPage: React.FC = () => {
                                             onChange={e => handleFieldChange('stageDevDays', e.target.value ? parseInt(e.target.value) : '')}
                                             onBlur={e => handleFieldBlur('stageDevDays', e.target.value ? parseInt(e.target.value) : '')}
                                             placeholder="30"
-                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${
-                                                formErrors.stageDevDays 
-                                                    ? 'border-red-300 focus:border-red-400' 
+                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${formErrors.stageDevDays
+                                                    ? 'border-red-300 focus:border-red-400'
                                                     : 'border-slate-200 focus:border-teal-400'
-                                            }`}
+                                                }`}
                                         />
                                         {formErrors.stageDevDays && (
                                             <p className="mt-1 text-xs text-red-600">{formErrors.stageDevDays}</p>
@@ -870,11 +864,10 @@ export const CropLibraryPage: React.FC = () => {
                                             onChange={e => handleFieldChange('stageMidDays', e.target.value ? parseInt(e.target.value) : '')}
                                             onBlur={e => handleFieldBlur('stageMidDays', e.target.value ? parseInt(e.target.value) : '')}
                                             placeholder="40"
-                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${
-                                                formErrors.stageMidDays 
-                                                    ? 'border-red-300 focus:border-red-400' 
+                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${formErrors.stageMidDays
+                                                    ? 'border-red-300 focus:border-red-400'
                                                     : 'border-slate-200 focus:border-teal-400'
-                                            }`}
+                                                }`}
                                         />
                                         {formErrors.stageMidDays && (
                                             <p className="mt-1 text-xs text-red-600">{formErrors.stageMidDays}</p>
@@ -888,11 +881,10 @@ export const CropLibraryPage: React.FC = () => {
                                             onChange={e => handleFieldChange('stageEndDays', e.target.value ? parseInt(e.target.value) : '')}
                                             onBlur={e => handleFieldBlur('stageEndDays', e.target.value ? parseInt(e.target.value) : '')}
                                             placeholder="20"
-                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${
-                                                formErrors.stageEndDays 
-                                                    ? 'border-red-300 focus:border-red-400' 
+                                            className={`w-full px-3 py-2.5 border rounded-xl text-sm bg-white focus:outline-none transition-colors ${formErrors.stageEndDays
+                                                    ? 'border-red-300 focus:border-red-400'
                                                     : 'border-slate-200 focus:border-teal-400'
-                                            }`}
+                                                }`}
                                         />
                                         {formErrors.stageEndDays && (
                                             <p className="mt-1 text-xs text-red-600">{formErrors.stageEndDays}</p>
@@ -911,11 +903,10 @@ export const CropLibraryPage: React.FC = () => {
                                         onChange={e => handleFieldChange('maxRootDepth', e.target.value ? parseFloat(e.target.value) : '')}
                                         onBlur={e => handleFieldBlur('maxRootDepth', e.target.value ? parseFloat(e.target.value) : '')}
                                         placeholder="0.5"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.maxRootDepth 
-                                                ? 'border-red-300 focus:border-red-400' 
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.maxRootDepth
+                                                ? 'border-red-300 focus:border-red-400'
                                                 : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                            }`}
                                     />
                                     {formErrors.maxRootDepth && (
                                         <p className="mt-1 text-xs text-red-600">{formErrors.maxRootDepth}</p>
@@ -930,11 +921,10 @@ export const CropLibraryPage: React.FC = () => {
                                         onChange={e => handleFieldChange('depletionFraction', e.target.value ? parseFloat(e.target.value) : '')}
                                         onBlur={e => handleFieldBlur('depletionFraction', e.target.value ? parseFloat(e.target.value) : '')}
                                         placeholder="0.5"
-                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${
-                                            formErrors.depletionFraction 
-                                                ? 'border-red-300 focus:border-red-400' 
+                                        className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none transition-colors ${formErrors.depletionFraction
+                                                ? 'border-red-300 focus:border-red-400'
                                                 : 'border-slate-200 focus:border-teal-400'
-                                        }`}
+                                            }`}
                                     />
                                     {formErrors.depletionFraction && (
                                         <p className="mt-1 text-xs text-red-600">{formErrors.depletionFraction}</p>

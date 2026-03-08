@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, Search, Settings, Bell, UserCircle, Users, LogOut, Smartphone, ChevronDown } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -39,13 +39,17 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenSidebar }) => {
     const { user, logout } = useAuth();
     const isAdmin = checkIsAdmin(user);
     const breadcrumbText = getBreadcrumbs(location.pathname);
-    const isMonitoring = location.pathname === '/monitoring';
     const { selectedDeviceId, setSelectedDeviceId } = useMonitoringDevice();
     const { data: userDevices = [] } = useQuery({
         queryKey: ['myDevices'],
         queryFn: deviceApi.getMyDevices,
-        enabled: isMonitoring,
     });
+    useEffect(() => {
+        if (userDevices.length > 0 && selectedDeviceId === null) {
+            setSelectedDeviceId(userDevices[0].id);
+        }
+    }, [userDevices, selectedDeviceId, setSelectedDeviceId]);
+
     const currentDevice = userDevices.find((d) => d.id === selectedDeviceId) ?? userDevices[0] ?? null;
 
     const handleLogout = () => {
@@ -69,8 +73,16 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenSidebar }) => {
                     <span className="mx-1.5">/</span>
                     <span className="font-medium text-slate-900">{breadcrumbText}</span>
                 </nav>
-                {isMonitoring && userDevices.length > 0 && (
+                {userDevices.length > 0 && (
                     <div className="hidden sm:flex items-center gap-2 min-w-0 ml-2">
+                        {currentDevice && (
+                            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-xl shrink-0 ${currentDevice.status === 'ONLINE' ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                                <div className={`w-2 h-2 rounded-full ${currentDevice.status === 'ONLINE' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                                <span className={`text-[11px] font-bold tracking-wide uppercase ${currentDevice.status === 'ONLINE' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                    {currentDevice.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
+                                </span>
+                            </div>
+                        )}
                         <Smartphone className="w-4 h-4 text-slate-500 shrink-0" />
                         <Select.Root
                             value={selectedDeviceId != null ? String(selectedDeviceId) : ''}
@@ -78,9 +90,9 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenSidebar }) => {
                         >
                             <Select.Trigger className="inline-flex items-center justify-between gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 min-w-0 max-w-[220px]">
                                 <Select.Value placeholder="Chọn thiết bị...">
-                                    {currentDevice
-                                        ? `${currentDevice.deviceName}${currentDevice.location ? ` · ${currentDevice.location}` : ''}`
-                                        : 'Chọn thiết bị...'}
+                                    <span className="block truncate text-left">
+                                        {currentDevice ? currentDevice.deviceName : 'Chọn thiết bị...'}
+                                    </span>
                                 </Select.Value>
                                 <Select.Icon>
                                     <ChevronDown className="w-4 h-4 shrink-0" />
@@ -100,8 +112,10 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ onOpenSidebar }) => {
                                                     className="relative flex items-center px-3 py-2 text-sm text-slate-700 rounded-lg cursor-pointer hover:bg-teal-50 focus:bg-teal-50 focus:outline-none data-[highlighted]:bg-teal-50"
                                                 >
                                                     <Select.ItemText>
-                                                        <span className="font-medium">{d.deviceName}</span>
-                                                        {d.location && <span className="text-slate-500 ml-1">· {d.location}</span>}
+                                                        <div className="flex items-center truncate">
+                                                            <span className="font-medium truncate">{d.deviceName}</span>
+                                                            {d.location && <span className="text-slate-500 ml-1 truncate shrink-0">· {d.location}</span>}
+                                                        </div>
                                                     </Select.ItemText>
                                                 </Select.Item>
                                             ))}

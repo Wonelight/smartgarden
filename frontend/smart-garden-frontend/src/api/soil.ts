@@ -11,7 +11,7 @@ export interface SoilLibraryListItem {
     updatedAt: string;
 }
 
-export interface SoilLibraryDetail extends SoilLibraryListItem {}
+export interface SoilLibraryDetail extends SoilLibraryListItem { }
 
 export interface AdminCreateSoilLibraryRequest {
     name: string;
@@ -30,6 +30,11 @@ export interface AdminUpdateSoilLibraryRequest {
 export const soilApi = {
     adminGetAllSoilLibraries: async (): Promise<SoilLibraryListItem[]> => {
         const response = await apiClient.get<ApiResponse<SoilLibraryListItem[]>>('/admin/soil-libraries');
+        return response.data.data ?? [];
+    },
+
+    getAllSoilLibraries: async (): Promise<SoilLibraryListItem[]> => {
+        const response = await apiClient.get<ApiResponse<SoilLibraryListItem[]>>('/soil-libraries');
         return response.data.data ?? [];
     },
 

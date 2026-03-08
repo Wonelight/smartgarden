@@ -14,7 +14,8 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
 /**
- * Cấu hình MQTT: cleanSession=false, ClientID cố định (2 kết nối: sub + pub để tránh conflict).
+ * Cấu hình MQTT: cleanSession=false, ClientID cố định (2 kết nối: sub + pub để
+ * tránh conflict).
  * TLS: cấu hình qua brokerUrl (ssl://) và MqttConnectOptions khi bật.
  */
 @Configuration
@@ -24,7 +25,7 @@ public class MqttConfig {
     public DefaultMqttPahoClientFactory mqttClientFactory(MqttProperties props) {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
         MqttConnectOptions options = new MqttConnectOptions();
-        options.setServerURIs(new String[]{props.getBrokerUrl()});
+        options.setServerURIs(new String[] { props.getBrokerUrl() });
         if (props.getUsername() != null && !props.getUsername().isBlank()) {
             options.setUserName(props.getUsername());
         }
@@ -47,18 +48,17 @@ public class MqttConfig {
 
     @Bean
     public MessageProducer mqttInbound(MqttProperties props,
-                                        DefaultMqttPahoClientFactory factory) {
-        MqttPahoMessageDrivenChannelAdapter adapter =
-                new MqttPahoMessageDrivenChannelAdapter(
-                        props.getBrokerUrl(),
-                        props.getClientId(),
-                        factory,
-                        MqttTopics.SUB_STATUS,
-                        MqttTopics.SUB_SENSOR,
-                        MqttTopics.SUB_HEARTBEAT,
-                        MqttTopics.SUB_LWT,
-                        MqttTopics.SUB_CMD_ACK
-                );
+            DefaultMqttPahoClientFactory factory) {
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
+                props.getBrokerUrl(),
+                props.getClientId(),
+                factory,
+                MqttTopics.SUB_STATUS,
+                MqttTopics.SUB_SENSOR,
+                MqttTopics.SUB_HEARTBEAT,
+                MqttTopics.SUB_LWT,
+                MqttTopics.SUB_CMD_ACK,
+                MqttTopics.SUB_HISTORY);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
@@ -77,15 +77,17 @@ public class MqttConfig {
         return new DirectChannel();
     }
 
-    /** Outbound: clientId riêng để tránh conflict với inbound (cùng broker chỉ cho 1 connection/clientId). */
+    /**
+     * Outbound: clientId riêng để tránh conflict với inbound (cùng broker chỉ cho 1
+     * connection/clientId).
+     */
     @Bean
     @ServiceActivator(inputChannel = "mqttOutboundChannel")
     public MessageHandler mqttOutbound(MqttProperties props,
-                                       DefaultMqttPahoClientFactory factory) {
+            DefaultMqttPahoClientFactory factory) {
         MqttPahoMessageHandler handler = new MqttPahoMessageHandler(
                 props.getClientId() + "-pub",
-                factory
-        );
+                factory);
         handler.setAsync(true);
         handler.setDefaultQos(1);
         return handler;

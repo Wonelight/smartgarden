@@ -28,6 +28,7 @@ export interface IrrigationConfig {
     deviceId: number;
     autoMode: boolean;
     fuzzyEnabled: boolean;
+    aiEnabled: boolean;
     soilMoistureMin: number;      // %
     soilMoistureMax: number;      // %
     wateringDuration: number;     // seconds
@@ -55,14 +56,18 @@ export interface MLPrediction {
 }
 
 // System_Log table
-export type LogLevel = 'INFO' | 'WARNING' | 'ERROR';
+export type LogLevel = 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+export type LogSource = 'ESP32' | 'BACKEND' | 'ML_SERVICE' | 'AI_SERVICE' | 'FRONTEND';
 
 export interface SystemLog {
     id: number;
     logLevel: LogLevel;
-    source: string;
+    logSource: LogSource;
+    deviceId: number | null;
+    deviceName: string | null;
     message: string;
-    timestamp: string;
+    stackTrace: string | null;
+    createdAt: string;
 }
 
 // Schedule table

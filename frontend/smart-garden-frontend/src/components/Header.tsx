@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Menu, LogOut, Settings, UserCircle, X, ChevronDown, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -11,8 +11,6 @@ export const Header: React.FC = () => {
     const [isAccountOpen, setIsAccountOpen] = React.useState(false);
     const { logout, user } = useAuth();
     const navigate = useNavigate();
-    const location = useLocation();
-
     // Check if user is admin
     const isAdmin = checkIsAdmin(user);
 

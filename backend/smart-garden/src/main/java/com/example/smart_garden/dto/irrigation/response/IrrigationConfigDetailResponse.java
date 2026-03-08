@@ -19,5 +19,7 @@ public record IrrigationConfigDetailResponse(
         Boolean fuzzyEnabled,
         Boolean autoMode,
         Boolean aiEnabled,
+        Float pumpFlowRate,
+        Integer nozzleCount,
         LocalDateTime updatedAt) {
 }

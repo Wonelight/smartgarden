@@ -40,7 +40,7 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
     private static final int LAG_HOURS_24 = 24;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public WaterBalanceStateResponse getState(Long deviceId) {
         Device device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new AppException(ErrorCode.DEVICE_NOT_FOUND));
@@ -91,7 +91,7 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
             List<Map<String, Object>> history = state.getSoilMoisHistory() != null
                     ? new ArrayList<>(state.getSoilMoisHistory())
                     : new ArrayList<>();
-            
+
             Map<String, Object> entry = new HashMap<>();
             entry.put("timestamp", LocalDateTime.now().format(ISO_FORMATTER));
             entry.put("value", request.soilMoisAvg());
@@ -164,18 +164,28 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
     }
 
     private DeviceWaterBalanceState createDefaultState(Device device) {
+        // Giá trị mặc định dựa trên loam soil (FC=30%, WP=15%, root=0.3m, p=0.5)
+        // TAW = 1000 × (0.30 - 0.15) × 0.3 = 45 mm total
+        // Shallow (40%): TAW=18mm, RAW=9mm | Deep (60%): TAW=27mm, RAW=13.5mm
+        float shallowTaw = 18.0f;
+        float deepTaw = 27.0f;
+        float shallowRaw = 9.0f;
+        float deepRaw = 13.5f;
+
         DeviceWaterBalanceState state = DeviceWaterBalanceState.builder()
                 .device(device)
                 .shallowDepletion(0.0f)
-                .shallowTaw(0.0f)
-                .shallowRaw(0.0f)
+                .shallowTaw(shallowTaw)
+                .shallowRaw(shallowRaw)
                 .deepDepletion(0.0f)
-                .deepTaw(0.0f)
-                .deepRaw(0.0f)
+                .deepTaw(deepTaw)
+                .deepRaw(deepRaw)
                 .lastIrrigation(0.0f)
                 .soilMoisHistory(new ArrayList<>())
                 .depletionHistory(new ArrayList<>())
                 .build();
+        log.info("Created default water balance state for device {} (loam defaults: TAW={}/{}, RAW={}/{})",
+                device.getId(), shallowTaw, deepTaw, shallowRaw, deepRaw);
         return stateRepository.save(state);
     }
 

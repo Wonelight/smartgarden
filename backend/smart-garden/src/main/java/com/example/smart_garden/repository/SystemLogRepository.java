@@ -78,6 +78,33 @@ public interface SystemLogRepository extends JpaRepository<SystemLog, Long> {
     List<SystemLog> findErrorLogsSince(@Param("since") LocalDateTime since);
 
     /**
+     * Lấy tất cả log với bộ lọc tùy chọn, phân trang - dành cho user (lọc theo device của họ)
+     */
+    @Query("SELECT sl FROM SystemLog sl WHERE sl.device.user.id = :userId " +
+           "AND (:level IS NULL OR sl.logLevel = :level) " +
+           "AND (:source IS NULL OR sl.logSource = :source) " +
+           "ORDER BY sl.createdAt DESC")
+    Page<SystemLog> findByUserIdWithFilters(
+            @Param("userId") Long userId,
+            @Param("level") LogLevel level,
+            @Param("source") LogSource source,
+            Pageable pageable
+    );
+
+    /**
+     * Lấy tất cả log với bộ lọc tùy chọn, phân trang - dành cho admin
+     */
+    @Query("SELECT sl FROM SystemLog sl WHERE " +
+           "(:level IS NULL OR sl.logLevel = :level) " +
+           "AND (:source IS NULL OR sl.logSource = :source) " +
+           "ORDER BY sl.createdAt DESC")
+    Page<SystemLog> findAllWithFilters(
+            @Param("level") LogLevel level,
+            @Param("source") LogSource source,
+            Pageable pageable
+    );
+
+    /**
      * Xóa log cũ hơn một thời điểm
      */
     void deleteByCreatedAtBefore(LocalDateTime beforeTime);

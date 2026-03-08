@@ -1,6 +1,7 @@
 package com.example.smart_garden.service;
 
 import com.example.smart_garden.dto.monitoring.response.SensorDataDetailResponse;
+import com.example.smart_garden.dto.monitoring.response.SensorDataHourlyResponse;
 import com.example.smart_garden.dto.monitoring.response.SensorDataListItemResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +28,15 @@ public interface SensorDataService {
      * Lấy dữ liệu cảm biến trong khoảng thời gian.
      */
     List<SensorDataListItemResponse> getByDeviceIdAndTimeRange(
+            Long deviceId,
+            LocalDateTime startTime,
+            LocalDateTime endTime);
+
+    /**
+     * Lấy dữ liệu cảm biến tổng hợp theo giờ (cho charts dài hạn).
+     * Trả về AVG/MIN/MAX cho mỗi metric trong mỗi giờ.
+     */
+    List<SensorDataHourlyResponse> getHourlyByDeviceIdAndTimeRange(
             Long deviceId,
             LocalDateTime startTime,
             LocalDateTime endTime);

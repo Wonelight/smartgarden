@@ -21,6 +21,8 @@ export interface UserDeviceListItem {
         west: number;
     };
     gardenArea?: number; // in square meters
+    defaultCropId?: number;
+    defaultSoilId?: number;
 }
 
 export interface UserDeviceDetail extends UserDeviceListItem {
@@ -134,4 +136,31 @@ export const deviceApi = {
     adminDeleteDevice: async (id: number): Promise<void> => {
         await apiClient.delete(`/admin/devices/${id}`);
     },
+
+    sendControlCommand: async (
+        deviceId: number,
+        controlType: 'PUMP' | 'LED' | 'SYSTEM',
+        action: 'ON' | 'OFF' | 'TOGGLE',
+        duration?: number
+    ): Promise<any> => {
+        const response = await apiClient.post<ApiResponse<any>>('/devices/controls', {
+            deviceId,
+            controlType,
+            action,
+            duration,
+        });
+        return response.data.data;
+    },
+    saveGardenConfig: async (
+        deviceId: number,
+        payload: {
+            gardenArea?: number;
+            defaultCropId?: number;
+            defaultSoilId?: number;
+        }
+    ): Promise<UserDeviceDetail> => {
+        const responseData = await apiClient.put<ApiResponse<UserDeviceDetail>>(`/devices/${deviceId}`, payload);
+        return responseData.data.data;
+    },
 };
+

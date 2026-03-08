@@ -18,10 +18,9 @@ import { MyDevicesPage } from './pages/MyDevicesPage';
 import { AdminDevicesPage } from './pages/AdminDevicesPage';
 import { DeviceDetailPage } from './pages/DeviceDetailPage';
 import { MonitoringPage } from './pages/MonitoringPage';
-import { IrrigationConfigPage } from './pages/IrrigationConfigPage';
 import { IrrigationHistoryPage } from './pages/IrrigationHistoryPage';
-import { SchedulesPage } from './pages/SchedulesPage';
 import { PredictionsPage } from './pages/PredictionsPage';
+import { GardenConfigPage } from './pages/GardenConfigPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
 import { MainLayout } from './layouts/MainLayout';
@@ -177,6 +176,14 @@ function App() {
               }
             />
             <Route
+              path="/garden-config"
+              element={
+                <ProtectedRoute>
+                  <GardenConfigPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/irrigation-history"
               element={
                 <ProtectedRoute>
@@ -192,18 +199,18 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/automation/schedules" replace />} />
-              <Route path="schedules" element={<SchedulesPage />} />
-              <Route path="config" element={<IrrigationConfigPage />} />
+              <Route index element={<Navigate to="/automation/predictions" replace />} />
+              <Route path="schedules" element={<Navigate to="/garden-config" replace />} />
+              <Route path="config" element={<Navigate to="/garden-config" replace />} />
               <Route path="predictions" element={<PredictionsPage />} />
             </Route>
             <Route
               path="/irrigation-config"
-              element={<Navigate to="/automation/config" replace />}
+              element={<Navigate to="/garden-config" replace />}
             />
             <Route
               path="/schedules"
-              element={<Navigate to="/automation/schedules" replace />}
+              element={<Navigate to="/garden-config" replace />}
             />
             <Route
               path="/predictions"

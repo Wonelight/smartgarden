@@ -30,8 +30,8 @@ const QA_DATA: QA[] = [
     {
         question: 'AI dự đoán tưới tiêu hoạt động ra sao?',
         answer:
-            'Hệ thống sử dụng mô hình **XGBoost** và **ANFIS** để dự đoán lượng nước cần tưới dựa trên dữ liệu thời tiết, độ ẩm đất, loại cây trồng và lịch sử tưới. Kết quả dự đoán hiển thị tại **Tự động hóa → Dự đoán ML & Fuzzy**.',
-        keywords: ['AI', 'dự đoán', 'prediction', 'ML', 'machine learning', 'ANFIS', 'XGBoost', 'model'],
+            'Hệ thống sử dụng mô hình **XGBoost** và **AI Platform** để dự đoán lượng nước cần tưới dựa trên dữ liệu thời tiết, độ ẩm đất, loại cây trồng và lịch sử tưới. Kết quả dự đoán hiển thị tại **Tự động hóa → Dự đoán ML & Fuzzy**.',
+        keywords: ['AI', 'dự đoán', 'prediction', 'ML', 'machine learning', 'XGBoost', 'model'],
     },
     {
         question: 'Làm sao để xem lịch sử tưới?',

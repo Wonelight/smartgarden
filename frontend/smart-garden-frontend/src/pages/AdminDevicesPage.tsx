@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     Wifi, WifiOff, AlertTriangle, Search, Plus, Pencil, Trash2,
-    MapPin, Cpu, X, Users, Loader2
+    X, Users, Loader2, Navigation
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -86,6 +86,58 @@ export const AdminDevicesPage: React.FC = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [formData, setFormData] = useState<Partial<AdminCreateDeviceRequest & AdminUpdateDeviceRequest & { id?: number }>>({});
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isDetecting, setIsDetecting] = useState(false);
+
+    const handleDetectLocation = () => {
+        if (!navigator.geolocation) {
+            toast.error('Trình duyệt không hỗ trợ định vị');
+            return;
+        }
+
+        setIsDetecting(true);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                handleFieldChange('latitude', parseFloat(lat.toFixed(6)));
+                handleFieldChange('longitude', parseFloat(lng.toFixed(6)));
+
+                try {
+                    // Lấy độ cao (Altitude) bằng API Open-Meteo
+                    const altRes = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`);
+                    if (altRes.ok) {
+                        const altData = await altRes.json();
+                        if (altData?.elevation?.[0] != null) {
+                            handleFieldChange('altitude', parseFloat(altData.elevation[0].toFixed(1)));
+                        }
+                    }
+
+                    // Lấy tên khu vực (Reverse Geocoding) bằng BigDataCloud API
+                    const locRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=vi`);
+                    if (locRes.ok) {
+                        const locData = await locRes.json();
+                        const addressParts = [locData.locality || locData.city, locData.principalSubdivision, locData.countryName].filter(Boolean);
+                        const address = addressParts.join(', ');
+                        if (address) {
+                            handleFieldChange('location', address.length > 255 ? address.substring(0, 255) : address);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Lỗi khi lấy thông tin phụ trợ:", err);
+                }
+
+                setIsDetecting(false);
+                toast.success('Đã lấy tọa độ và các thông tin liên quan');
+            },
+            (error) => {
+                let errorMsg = 'Không thể lấy tọa độ';
+                if (error.code === error.PERMISSION_DENIED) errorMsg = 'Vui lòng cấp quyền truy cập vị trí';
+                toast.error(errorMsg);
+                setIsDetecting(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    };
 
     const { data: adminDevices = [], isLoading } = useQuery({
         queryKey: ['adminDevices'],
@@ -153,7 +205,7 @@ export const AdminDevicesPage: React.FC = () => {
         if (formData.latitude != null && (formData.latitude < -90 || formData.latitude > 90)) errors.latitude = 'Vĩ độ phải trong khoảng -90 đến 90';
         if (formData.longitude != null && (formData.longitude < -180 || formData.longitude > 180)) errors.longitude = 'Kinh độ phải trong khoảng -180 đến 180';
         if (formData.altitude != null && formData.altitude < 0) errors.altitude = 'Độ cao phải lớn hơn hoặc bằng 0';
-        if (formData.userId != null && formData.userId !== '' && (Number(formData.userId) <= 0 || !Number.isInteger(Number(formData.userId)))) errors.userId = 'User ID phải là số nguyên dương';
+        if (formData.userId != null && (Number(formData.userId) <= 0 || !Number.isInteger(Number(formData.userId)))) errors.userId = 'User ID phải là số nguyên dương';
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -298,6 +350,17 @@ export const AdminDevicesPage: React.FC = () => {
                                     {formErrors.altitude && <p className="mt-1 text-xs text-red-600">{formErrors.altitude}</p>}
                                 </div>
                             </div>
+
+                            <button
+                                type="button"
+                                onClick={handleDetectLocation}
+                                disabled={isDetecting}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition-colors disabled:opacity-50"
+                            >
+                                {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                                {isDetecting ? 'Đang lấy tọa độ...' : 'Lấy tọa độ hiện tại'}
+                            </button>
+
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 mb-1.5">Gán cho user (ID)</label>
                                 <input type="number" value={formData.userId ?? ''} onChange={(e) => handleFieldChange('userId', e.target.value ? parseInt(e.target.value, 10) : '')} onBlur={(e) => handleFieldBlur('userId', e.target.value ? parseInt(e.target.value, 10) : '')} placeholder="VD: 1" className={inputCls('userId')} />

@@ -73,7 +73,8 @@ export const SensorLineChart: React.FC<SensorLineChartProps> = ({ data, isLoadin
                                 borderRadius: '12px',
                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                             }}
-                            formatter={(value: number, name: string) => {
+                            formatter={(value: any, name: any) => {
+                                if (value === undefined) return ['', name];
                                 if (name === 'soilMoisture') return [`${value}%`, 'Độ ẩm đất'];
                                 return [`${value.toLocaleString()} lux`, 'Ánh sáng'];
                             }}
@@ -161,7 +162,7 @@ export const WaterUsageBarChart: React.FC<WaterUsageBarChartProps> = ({ data, is
                                 borderRadius: '12px',
                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                             }}
-                            formatter={(value: number) => [`${value} lít`, 'Lượng nước']}
+                            formatter={(value: number | undefined) => value === undefined ? ['', 'Lượng nước'] : [`${value} lít`, 'Lượng nước']}
                             cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
                         />
                         <Bar
