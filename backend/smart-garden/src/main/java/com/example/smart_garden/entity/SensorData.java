@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Where;
 import org.hibernate.type.SqlTypes;
@@ -47,7 +46,9 @@ public class SensorData extends BaseEntity {
         @Column(name = "payload", columnDefinition = "json", nullable = false)
         private Map<String, Object> payload;
 
-        @CreationTimestamp
+        // Thời điểm sensor đo thực tế (từ ESP32 ts field).
+        // KHÔNG dùng @CreationTimestamp — để ingestFromMqtt set từ payload.ts.
+        // Nếu ESP32 không gửi ts → ingestFromMqtt fallback về LocalDateTime.now().
         @Column(name = "timestamp", updatable = false)
         private LocalDateTime timestamp;
 

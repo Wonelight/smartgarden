@@ -153,8 +153,14 @@ public class IrrigationServiceImpl implements IrrigationService {
         }
 
         com.example.smart_garden.entity.enums.IrrigationMode mappedMode = com.example.smart_garden.entity.enums.IrrigationMode.MANUAL;
-        if (payload.getMode() != null && payload.getMode().startsWith("AUTO")) {
+        if (payload.getMode() != null && (payload.getMode().startsWith("AUTO") || payload.getMode().startsWith("AI"))) {
             mappedMode = com.example.smart_garden.entity.enums.IrrigationMode.AUTO;
+        }
+
+        com.example.smart_garden.entity.enums.IrrigationHistoryStatus mappedStatus =
+                com.example.smart_garden.entity.enums.IrrigationHistoryStatus.COMPLETED;
+        if ("AI_INTERRUPT".equals(payload.getMode())) {
+            mappedStatus = com.example.smart_garden.entity.enums.IrrigationHistoryStatus.INTERRUPTED;
         }
 
         // Tính waterVolume từ duration × pumpFlowRate × nozzleCount (ESP32 không gửi waterVolume)
@@ -177,7 +183,7 @@ public class IrrigationServiceImpl implements IrrigationService {
                         java.time.ZoneId.systemDefault()))
                 .soilMoistureBefore(payload.getSoilMoistureBefore())
                 .soilMoistureAfter(payload.getSoilMoistureAfter())
-                .status(com.example.smart_garden.entity.enums.IrrigationHistoryStatus.COMPLETED)
+                .status(mappedStatus)
                 .build();
 
         irrigationHistoryRepository.save(history);

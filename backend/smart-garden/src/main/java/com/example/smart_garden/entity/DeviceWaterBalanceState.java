@@ -76,6 +76,11 @@ public class DeviceWaterBalanceState extends BaseEntity {
     @Column(name = "depletion_history", columnDefinition = "json")
     private List<Map<String, Object>> depletionHistory;
 
+    /** Lịch sử ETc theo giờ (để tính etc_rolling 6h/12h/24h). Mỗi entry: {"timestamp": ISO, "value": float (mm)}. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "etc_history", columnDefinition = "json")
+    private List<Map<String, Object>> etcHistory;
+
     // Computed properties
     public Float getWeightedDepletion() {
         return 0.6f * deepDepletion + 0.4f * shallowDepletion;

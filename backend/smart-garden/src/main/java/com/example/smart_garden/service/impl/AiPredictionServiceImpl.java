@@ -136,7 +136,8 @@ public class AiPredictionServiceImpl implements AiPredictionService {
         }
         payload.put("crop", cropPayload);
         // Single source of truth: state từ DB, gửi kèm để AI không cần GET/PUT
-        payload.put("water_balance", buildWaterBalancePayload(waterBalanceStateService.getState(request.deviceId())));
+        // Truyền location để tính rain_last_*h từ OpenWeather history (mm thực) thay vì sensor count
+        payload.put("water_balance", buildWaterBalancePayload(waterBalanceStateService.getState(request.deviceId()), device.getLocation()));
 
         // Pump config: AI service dùng để tính flow_rate_mm_per_sec = (pumpFlowRate × nozzleCount / 60) / gardenArea
         IrrigationConfig irrigConfig = irrigationConfigRepository.findByDeviceId(request.deviceId()).orElse(null);
@@ -208,7 +209,7 @@ public class AiPredictionServiceImpl implements AiPredictionService {
 
         // 7. Persist updated water balance from AI (single source of truth: chỉ backend
         // ghi DB)
-        persistUpdatedWaterBalanceFromResponse(request.deviceId(), pythonResponse);
+        persistUpdatedWaterBalanceFromResponse(request.deviceId(), pythonResponse, sensorPayload);
 
         // 7.5 Plan A: Gửi lệnh IRRIGATE tới ESP32 nếu predictedDuration > 0
         //     Chỉ gửi trong Decision Window (5-7h, 17-19h) và khi sensor cho phép
@@ -392,8 +393,7 @@ public class AiPredictionServiceImpl implements AiPredictionService {
             }
         }
 
-        // Safety: cap at 10 phút/lần (600s) để tránh tưới quá nhiều một đợt
-        int safeDuration = Math.min(predictedDuration, 600);
+        int safeDuration = predictedDuration;
 
         log.info("[IRRIGATE] Dispatching to device={} duration={}s (hour={})",
                 device.getDeviceCode(), safeDuration, currentHour);
@@ -429,7 +429,13 @@ public class AiPredictionServiceImpl implements AiPredictionService {
      * AI nhận snapshot này trong request, không cần GET state từ backend.
      * Snake_case để khớp contract Python.
      */
-    private Map<String, Object> buildWaterBalancePayload(WaterBalanceStateResponse state) {
+    /**
+     * Build water_balance payload block từ state trong DB.
+     * rain_last_*h được tính từ WeatherData.precipitation (mm từ OpenWeather history)
+     * vì hệ thống không có rain gauge — sensor rainDetected chỉ là binary 0/1,
+     * không phải mm mưa.
+     */
+    private Map<String, Object> buildWaterBalancePayload(WaterBalanceStateResponse state, String location) {
         Map<String, Object> wb = new LinkedHashMap<>();
         wb.put("shallow_depletion", state.shallowDepletion());
         wb.put("deep_depletion", state.deepDepletion());
@@ -440,17 +446,38 @@ public class AiPredictionServiceImpl implements AiPredictionService {
         wb.put("last_irrigation", state.lastIrrigation());
         wb.put("last_updated", state.lastUpdated() != null ? state.lastUpdated().format(ISO_DATE_TIME) : null);
         wb.put("soil_moist_history", state.soilMoisHistory() != null ? state.soilMoisHistory() : List.of());
-        // Lag features (backend tính từ depletion_history + sensor data)
+        // Lag features (backend tính từ depletion_history)
         wb.put("depletion_trend_6h", state.depletionTrend6h() != null ? state.depletionTrend6h() : 0.0f);
         wb.put("depletion_trend_12h", state.depletionTrend12h() != null ? state.depletionTrend12h() : 0.0f);
         wb.put("depletion_trend_24h", state.depletionTrend24h() != null ? state.depletionTrend24h() : 0.0f);
-        wb.put("rain_last_6h", state.rainLast6h() != null ? state.rainLast6h() : 0.0f);
-        wb.put("rain_last_12h", state.rainLast12h() != null ? state.rainLast12h() : 0.0f);
-        wb.put("rain_last_24h", state.rainLast24h() != null ? state.rainLast24h() : 0.0f);
+        // Rain: lấy từ OpenWeather history (mm thực), KHÔNG dùng sensor detection count
+        LocalDateTime now = LocalDateTime.now();
+        wb.put("rain_last_6h",  sumWeatherRainInWindow(location, 6,  now));
+        wb.put("rain_last_12h", sumWeatherRainInWindow(location, 12, now));
+        wb.put("rain_last_24h", sumWeatherRainInWindow(location, 24, now));
         wb.put("etc_rolling_6h", state.etcRolling6h() != null ? state.etcRolling6h() : 0.0f);
         wb.put("etc_rolling_12h", state.etcRolling12h() != null ? state.etcRolling12h() : 0.0f);
         wb.put("etc_rolling_24h", state.etcRolling24h() != null ? state.etcRolling24h() : 0.0f);
         return wb;
+    }
+
+    /**
+     * Tổng lượng mưa (mm) từ OpenWeather history trong cửa sổ [now-hours, now].
+     * Dùng WeatherData.precipitation — đây là nguồn dữ liệu mm thực thay cho
+     * sensor rainDetected (binary 0/1, không đo được lượng mưa).
+     */
+    private float sumWeatherRainInWindow(String location, int hours, LocalDateTime now) {
+        if (location == null || location.isBlank()) return 0.0f;
+        LocalDateTime start = now.minusHours(hours);
+        List<WeatherData> history = weatherDataRepository
+                .findByLocationAndForecastTimeBetween(location, start, now);
+        float sum = 0.0f;
+        for (WeatherData w : history) {
+            if (w.getPrecipitation() != null && w.getPrecipitation() > 0) {
+                sum += w.getPrecipitation();
+            }
+        }
+        return sum;
     }
 
     /**
@@ -459,7 +486,8 @@ public class AiPredictionServiceImpl implements AiPredictionService {
      * Bỏ qua nếu response không có field này (tương thích khi AI chưa trả về).
      */
     @SuppressWarnings("unchecked")
-    private void persistUpdatedWaterBalanceFromResponse(Long deviceId, Map<String, Object> pythonResponse) {
+    private void persistUpdatedWaterBalanceFromResponse(Long deviceId, Map<String, Object> pythonResponse,
+                                                        Map<String, Object> sensorPayload) {
         Object updated = pythonResponse.get("updated_water_balance");
         if (updated == null || !(updated instanceof Map)) {
             return;
@@ -481,10 +509,28 @@ public class AiPredictionServiceImpl implements AiPredictionService {
             List<Map<String, Object>> soilHistory = u.get("soil_moist_history") instanceof List
                     ? (List<Map<String, Object>>) u.get("soil_moist_history")
                     : null;
+            // Extract ETc từ ai_params.features.etc
+            Float etcValue = null;
+            Object aiParams = pythonResponse.get("ai_params");
+            if (aiParams instanceof Map) {
+                Object features = ((Map<?, ?>) aiParams).get("features");
+                if (features instanceof Map) {
+                    etcValue = parseFloat(((Map<?, ?>) features).get("etc"));
+                }
+            }
+            // Tính soilMoisAvg từ sensor payload
+            Float soilAvg = null;
+            if (sensorPayload != null) {
+                Float sm1 = parseFloat(sensorPayload.get("soil_moist1"));
+                Float sm2 = parseFloat(sensorPayload.get("soil_moist2"));
+                if (sm1 != null && sm2 != null) soilAvg = (sm1 + sm2) / 2f;
+                else soilAvg = sm1 != null ? sm1 : sm2;
+            }
             waterBalanceStateService.updateState(deviceId, new UpdateWaterBalanceStateRequest(
                     shallowDepletion, deepDepletion, shallowTaw, deepTaw, shallowRaw, deepRaw,
-                    lastIrr != null ? lastIrr : 0.0f, null, soilHistory));
-            log.info("Persisted updated water balance from AI response for device {}", deviceId);
+                    lastIrr != null ? lastIrr : 0.0f, soilAvg, soilHistory, etcValue));
+            log.info("Persisted updated water balance from AI response for device {} (etc={}, soilAvg={})",
+                    deviceId, etcValue, soilAvg);
         } catch (Exception e) {
             log.warn("Failed to persist updated_water_balance from AI: {}", e.getMessage());
         }
@@ -701,12 +747,20 @@ public class AiPredictionServiceImpl implements AiPredictionService {
                     String growthStage = determineGrowthStage(crop, plantAgeDays);
                     double kcCurrent = agroPhysicsService.calculateKc(crop, plantAgeDays);
 
-                    // Effective root depth: linearly interpolate from initial to max
-                    int totalDays = crop.getStageIniDays() + crop.getStageDevDays()
-                            + crop.getStageMidDays() + crop.getStageEndDays();
-                    float rootDepth = season.getInitialRootDepth()
-                            + (crop.getMaxRootDepth() - season.getInitialRootDepth())
-                                    * Math.min(1.0f, (float) plantAgeDays / totalDays);
+                    // Effective root depth — FAO-56: Zr cố định ở Zr_ini trong initial stage,
+                    // chỉ tăng tuyến tính từ Zr_ini → Zr_max trong development stage trở đi.
+                    int iniDays = crop.getStageIniDays();
+                    int devDays = crop.getStageDevDays();
+                    float rootDepth;
+                    if (plantAgeDays <= iniDays) {
+                        // Initial stage: rễ chưa phát triển, giữ cố định
+                        rootDepth = season.getInitialRootDepth();
+                    } else {
+                        // Development stage trở đi: nội suy tuyến tính Zr_ini → Zr_max trong devDays
+                        float devProgress = Math.min(1.0f, (float) (plantAgeDays - iniDays) / devDays);
+                        rootDepth = season.getInitialRootDepth()
+                                + (crop.getMaxRootDepth() - season.getInitialRootDepth()) * devProgress;
+                    }
 
                     Map<String, Object> cropPayload = new LinkedHashMap<>();
                     cropPayload.put("type", crop.getName());

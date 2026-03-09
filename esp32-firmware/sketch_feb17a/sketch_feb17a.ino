@@ -171,6 +171,7 @@ typedef struct {
   bool aiIrrigationActive;
   unsigned long aiIrrigationStartMs;
   int aiIrrigationDurationSec;
+  bool aiInterruptedByButton;  // Set bởi buttonTask khi nút nhấn ngắt AI irrigation
 
   bool pendingHistoryPublish;
   unsigned long long historyStartTime;
@@ -185,7 +186,7 @@ typedef struct {
 } MqttState;
 
 
-MqttState mqttState = {false, PUMP_OFF_THRESHOLD, false, 0, 0.0f, "", false, 0, 0, false, 0, 0, 0, 0.0f, 0.0f, "", "", 0};
+MqttState mqttState = {false, PUMP_OFF_THRESHOLD, false, 0, 0.0f, "", false, 0, 0, false, false, 0, 0, 0, 0.0f, 0.0f, "", "", 0};
 
 // Web App registration status
 volatile bool webAppRegistered = false;  // True khi device được đăng ký trên web app
@@ -212,10 +213,12 @@ enum LightSet  { LIGHT_DARK, LIGHT_DIM, LIGHT_BRIGHT };
 // Chiến lược tưới — fuzzy quyết định CÁCH tưới, không phải bao lâu
 enum IrrigationStrategy { STRAT_SKIP, STRAT_GENTLE, STRAT_NORMAL, STRAT_AGGRESSIVE };
 
-// Thông số pulse cho mỗi strategy: {pulseOnSec, pulseOffSec, fallbackDurationSec}
-// - pulseOnSec:  bật bơm mỗi chu kỳ (giây)
-// - pulseOffSec: nghỉ (soak) giữa các chu kỳ (giây), 0 = tưới liên tục
-// - fallbackDurationSec: tổng thời gian tưới khi offline (không có AI duration)
+// Thông số pulse cho tưới nhỏ giọt: {pulseOnSec, pulseOffSec, fallbackDurationSec}
+// - pulseOnSec:  thời gian bật bơm mỗi chu kỳ (giây)
+// - pulseOffSec: thời gian nghỉ/thấm giữa các chu kỳ (giây) — phải > 0 với drip
+// - fallbackDurationSec: tổng thời gian bơm thực khi không có AI duration
+// Ví dụ: AI duration=858s + NORMAL → ~7 chu kỳ x (120s bật + 90s nghỉ) ≈ 25 phút tổng
+// Tổng giờ thực = (duration / pulseOnSec) * (pulseOnSec + pulseOffSec)
 struct StrategyParams {
   int pulseOnSec;
   int pulseOffSec;
@@ -224,9 +227,9 @@ struct StrategyParams {
 
 static const StrategyParams strategyTable[4] = {
   {0,   0,   0},    // SKIP: không tưới
-  {30,  60,  120},  // GENTLE: bật 30s nghỉ 60s, fallback 2 phút
-  {60,  45,  240},  // NORMAL: bật 60s nghỉ 45s, fallback 4 phút
-  {0,   0,   300},  // AGGRESSIVE: tưới liên tục, fallback 5 phút
+  {60,  120, 180},  // GENTLE: bật 60s nghỉ 120s, fallback 3 phút — đất ẩm, thấm chậm
+  {120, 90,  300},  // NORMAL: bật 120s nghỉ 90s, fallback 5 phút — chuẩn drip cân bằng
+  {180, 60,  420},  // AGGRESSIVE: bật 180s nghỉ 60s, fallback 7 phút — đất khô, nghỉ tối thiểu
 };
 
 // Hàm liên thuộc dạng hình thang: mỗi tập mờ là 4 điểm (a,b,c,d)
@@ -592,8 +595,7 @@ void updateScreen(const DisplayData &d) {
   }
 
   // ---- Row 7: Lux + Light relay (y=106) ----
-  if (d.lux > 9999) snprintf(buf, sizeof(buf), ">9999lx ");
-  else              snprintf(buf, sizeof(buf), "%dlx    ", (int)d.lux);
+  snprintf(buf, sizeof(buf), "%d lx ", (int)d.lux);  // BH1750 max 65535 lx → "65535lx " = 8 chars ≤ 52px
   tft.fillRect(29, 106, 52, 8, ST77XX_BLACK);
   tft.setTextColor(ST77XX_WHITE);
   tft.setCursor(29, 106); tft.print(buf);
@@ -893,7 +895,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   } else if (strcmp(cmd, "IRRIGATE") == 0) {
     // Plan A: AI-driven irrigation with duration (seconds)
     int duration = doc["params"]["duration"] | -1;
-    if (duration > 0 && duration <= 600) {  // Max 10 phút/lần — khớp với Spring Boot cap
+    if (duration > 0) {
 
       // Gate 1 (time check) đã bị loại khỏi ESP32:
       // - AI commands: backend đã chặn ngoài Decision Window rồi
@@ -941,6 +943,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       }
 
       if (xSemaphoreTake(mqttStateMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        mqttState.manualMode = false;          // Reset manual override — pump task sẽ quản lý timer AI
         mqttState.aiIrrigationActive = true;
         mqttState.aiIrrigationStartMs = millis();
         mqttState.aiIrrigationDurationSec = duration;
@@ -963,7 +966,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       Serial.printf("[CMD] IRRIGATE duration=%ds strategy=%d\n", duration, (int)strat);
     } else {
       success = false;
-      ackMsg = "Invalid duration (1-600s)";
+      ackMsg = "Invalid duration (must be > 0)";
     }
 
   } else if (strcmp(cmd, "LIGHT_ON") == 0) {
@@ -1382,13 +1385,31 @@ void pumpTask(void *pvParameters) {
     bool aiActive = false;
     unsigned long aiStartMs = 0;
     int aiDurationSec = 0;
+    bool aiInterrupted = false;
 
     if (xSemaphoreTake(mqttStateMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
       manualMode    = mqttState.manualMode;
       aiActive      = mqttState.aiIrrigationActive;
       aiStartMs     = mqttState.aiIrrigationStartMs;
       aiDurationSec = mqttState.aiIrrigationDurationSec;
+      aiInterrupted = mqttState.aiInterruptedByButton;
+      if (aiInterrupted) mqttState.aiInterruptedByButton = false;  // consume one-shot flag
       xSemaphoreGive(mqttStateMutex);
+    }
+
+    // Nút vật lý đã ngắt AI irrigation: tắt relay, reset fuzzy về IDLE/cooldown
+    if (aiInterrupted) {
+      digitalWrite(RELAY_PIN, RELAY_OFF);
+      if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        sharedData.pump_state = false;
+        xSemaphoreGive(dataMutex);
+      }
+      if (fuzzyState != FP_IDLE) {
+        fuzzyTotalWateredMs = 0;
+        fuzzyState          = FP_COOLDOWN;
+        fuzzyCooldownUntil  = currentTime + COOLDOWN_PERIOD;
+        Serial.println("[PUMP] AI interrupted by physical button → cooldown");
+      }
     }
 
     // Phát hiện chuyển manual ↔ auto
@@ -2039,46 +2060,87 @@ void buttonTask(void *pvParameters) {
         }
         // Timeout: nếu quá CLICK_TIMEOUT_MS mà không nhấn lần 2 → SINGLE CLICK
         else if ((now - releaseTime) > CLICK_TIMEOUT_MS) {
-          // ✅ SINGLE CLICK → Toggle bơm
-          Serial.println("[BTN] >> SINGLE CLICK → Toggle PUMP");
+          // ✅ SINGLE CLICK → Tuỳ trạng thái: ngắt AI irrigation hoặc toggle thủ công
+          Serial.println("[BTN] >> SINGLE CLICK");
 
           bool currentPump = false;
           float currentSoil = 0;
           if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
             currentPump = sharedData.pump_state;
-            sharedData.pump_state = !currentPump;
-            currentSoil = sharedData.soil1_percent;
+            currentSoil = (sharedData.soil1_percent + sharedData.soil2_percent) / 2.0f;
             xSemaphoreGive(dataMutex);
           }
-          digitalWrite(RELAY_PIN, !currentPump ? RELAY_ON : RELAY_OFF);
 
-          // Đặt manual mode và history
+          bool aiWasActive = false;
           if (xSemaphoreTake(mqttStateMutex, pdMS_TO_TICKS(200)) == pdTRUE) {
-            mqttState.manualMode = true;
-            mqttState.pendingStatusPublish = true;
-            
-            if (!currentPump) {
-              // Bật bơm
-              mqttState.currentPumpStartTime = getEpochMs();
-              mqttState.currentPumpSoilBefore = currentSoil;
-              strncpy(mqttState.currentPumpMode, "MANUAL_LOCAL", sizeof(mqttState.currentPumpMode) - 1);
-            } else {
-              // Tắt bơm
+            aiWasActive = mqttState.aiIrrigationActive;
+
+            if (aiWasActive) {
+              // === Ngắt AI irrigation bằng nút vật lý ===
+              // Relay luôn OFF bất kể đang ở pha bơm hay pha nghỉ
               unsigned long long endTime = getEpochMs();
-              int duration = (endTime > mqttState.currentPumpStartTime) ? (endTime - mqttState.currentPumpStartTime) / 1000 : 0;
-              
-              mqttState.historyStartTime = mqttState.currentPumpStartTime;
-              mqttState.historyEndTime = endTime;
-              mqttState.historyDuration = duration;
-              mqttState.historySoilBefore = mqttState.currentPumpSoilBefore;
-              mqttState.historySoilAfter = currentSoil;
-              strncpy(mqttState.historyMode, mqttState.currentPumpMode, sizeof(mqttState.historyMode) - 1);
+              int duration = (endTime > mqttState.currentPumpStartTime)
+                             ? (int)((endTime - mqttState.currentPumpStartTime) / 1000) : 0;
+
+              mqttState.aiIrrigationActive   = false;
+              mqttState.aiInterruptedByButton = true;   // Báo pumpTask reset fuzzyState
+              mqttState.manualMode           = false;   // Không vào manual mode, trở về auto
+
+              // Ghi nhận lịch sử tưới bị ngắt
+              mqttState.historyStartTime   = mqttState.currentPumpStartTime;
+              mqttState.historyEndTime     = endTime;
+              mqttState.historyDuration    = duration;
+              mqttState.historySoilBefore  = mqttState.currentPumpSoilBefore;
+              mqttState.historySoilAfter   = currentSoil;
+              strncpy(mqttState.historyMode, "AI_INTERRUPT", sizeof(mqttState.historyMode) - 1);
               mqttState.pendingHistoryPublish = true;
+              mqttState.pendingStatusPublish  = true;
+
+              Serial.printf("[BTN] AI irrigation INTERRUPTED (elapsed %ds) → history queued\n", duration);
+            } else {
+              // === Toggle bơm thủ công thông thường ===
+              mqttState.manualMode = true;
+              mqttState.pendingStatusPublish = true;
+
+              if (!currentPump) {
+                // Bật bơm thủ công
+                mqttState.currentPumpStartTime  = getEpochMs();
+                mqttState.currentPumpSoilBefore = currentSoil;
+                strncpy(mqttState.currentPumpMode, "MANUAL_LOCAL", sizeof(mqttState.currentPumpMode) - 1);
+              } else {
+                // Tắt bơm thủ công
+                unsigned long long endTime = getEpochMs();
+                int duration = (endTime > mqttState.currentPumpStartTime)
+                               ? (int)((endTime - mqttState.currentPumpStartTime) / 1000) : 0;
+                mqttState.historyStartTime   = mqttState.currentPumpStartTime;
+                mqttState.historyEndTime     = endTime;
+                mqttState.historyDuration    = duration;
+                mqttState.historySoilBefore  = mqttState.currentPumpSoilBefore;
+                mqttState.historySoilAfter   = currentSoil;
+                strncpy(mqttState.historyMode, mqttState.currentPumpMode, sizeof(mqttState.historyMode) - 1);
+                mqttState.pendingHistoryPublish = true;
+              }
             }
-            
+
             xSemaphoreGive(mqttStateMutex);
           }
-          Serial.printf("[BTN] Pump → %s\n", !currentPump ? "ON" : "OFF");
+
+          // Điều khiển relay: AI interrupt → tắt relay; manual → toggle
+          if (aiWasActive) {
+            digitalWrite(RELAY_PIN, RELAY_OFF);
+            if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+              sharedData.pump_state = false;
+              xSemaphoreGive(dataMutex);
+            }
+            Serial.println("[BTN] Relay OFF — AI irrigation cancelled by physical button");
+          } else {
+            digitalWrite(RELAY_PIN, !currentPump ? RELAY_ON : RELAY_OFF);
+            if (xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+              sharedData.pump_state = !currentPump;
+              xSemaphoreGive(dataMutex);
+            }
+            Serial.printf("[BTN] Pump (manual) → %s\n", !currentPump ? "ON" : "OFF");
+          }
 
           state = BTN_IDLE;
         }

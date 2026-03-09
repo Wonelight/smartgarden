@@ -1,0 +1,188 @@
+# Smart Garden - Tổng Quan Hệ Thống
+Smart Garden là hệ thống tưới tiêu thông minh IoT tích hợp AI. Kiến trúc gồm:
+- ESP32 firmware: thu thập cảm biến, điều khiển bơm, kết nối Wi-Fi + MQTT.
+- Backend Spring Boot (Java): xử lý nghiệp vụ, lưu trữ MySQL, gọi AI service.
+- AI Service (Python FastAPI): tính toán FAO-56, dự đoán XGBoost/RF.
+- Frontend React/TypeScript: Dashboard, giám sát, cài đặt.
+- MQTT Broker: trung gian tin nhắn giữa ESP32 và backend.
+API base URL: http://localhost:8081/api. Frontend: http://localhost:5173.
+
+---
+
+# Thiết Bị - Thêm và Quản Lý
+Để thêm thiết bị mới:
+1. Vào menu Thiết bị của tôi → nhấn nút "Thêm thiết bị".
+2. Nhập MAC Address của ESP32 và đặt tên thiết bị.
+3. Chọn loại cây trồng và loại đất phù hợp.
+4. Nhấn Lưu. Thiết bị sẽ tự kết nối khi được cấp nguồn và có Wi-Fi.
+Để đổi tên thiết bị: vào Thiết bị của tôi → nhấn biểu tượng chỉnh sửa.
+Để xóa thiết bị: nhấn biểu tượng thùng rác → xác nhận. Lịch sử dữ liệu vẫn được giữ.
+Xem chi tiết thiết bị: nhấn vào tên thiết bị để vào trang Device Detail.
+
+---
+
+# ESP32 Firmware - Hoạt Động Phần Cứng
+Firmware ESP32 thực hiện các nhiệm vụ chính:
+1. Đọc cảm biến mỗi 30 giây: độ ẩm đất, nhiệt độ, độ ẩm không khí, cường độ ánh sáng.
+2. Publish dữ liệu qua MQTT topic: garden/{deviceId}/sensor.
+3. Subscribe lệnh bơm từ topic: garden/{deviceId}/command.
+4. Fuzzy logic local: kiểm tra an toàn (ngăn tưới khi đất đã quá ẩm).
+5. Chế độ AI: nhận lịch tưới từ AI service và thực thi đúng giờ.
+Khi thiết bị bị ngắt nguồn và cấp lại, ESP32 tự động kết nối lại Wi-Fi và MQTT trong vài giây.
+
+---
+
+# Thiết Bị Offline - Xử Lý Sự Cố
+Khi thiết bị bị offline (badge đỏ trên dashboard), kiểm tra theo thứ tự:
+1. Nguồn điện: đảm bảo adapter đang cấp điện cho mạch ESP32.
+2. Wi-Fi: ESP32 phải kết nối đúng SSID và mật khẩu. Kiểm tra router/hotspot.
+3. MQTT Broker: dịch vụ Mosquitto MQTT phải đang chạy (port 1883).
+4. Tường lửa: cổng 1883 không bị chặn trên máy chủ.
+Sau khi khắc phục sự cố, thiết bị tự kết nối lại trong vòng 1 phút.
+Hệ thống gửi thông báo ngay khi thiết bị mất kết nối.
+
+---
+
+# Tưới Thủ Công
+Để tưới thủ công ngay lập tức:
+1. Vào Dashboard → tìm khung Điều khiển (Control Panel).
+2. Nhập thời lượng tưới (phút).
+3. Nhấn nút "Tưới ngay".
+Lệnh được gửi qua MQTT đến ESP32 trong vài giây. Bơm bật theo đúng thời lượng đã đặt.
+Có thể tưới thủ công từ trang Chi tiết thiết bị.
+Lịch sử tưới thủ công được ghi lại với nguồn kích hoạt = "Thủ công".
+
+---
+
+# Chế Độ Tưới Tự Động (Auto Mode)
+Chế độ Auto kích hoạt tưới dựa trên ngưỡng độ ẩm đất cứng:
+- Khi độ ẩm đất < Moisture Min → hệ thống tự tưới.
+- Khi độ ẩm đất đạt Moisture Max → dừng bơm.
+Bật/tắt tại: Dashboard → khung Điều khiển → toggle "Chế độ tự động".
+Điều chỉnh ngưỡng tại: Dashboard → khung Điều khiển → chỉnh Moisture Min/Max.
+Hoặc vào Cài đặt vườn để chỉnh chi tiết hơn.
+Gợi ý ngưỡng: Đất cát 30-60%, Đất thịt 40-70%, Đất sét 50-80%.
+Hạn chế: chế độ Auto không thích nghi theo thời tiết, không tối ưu lượng nước.
+
+---
+
+# Chế Độ AI - Tưới Thông Minh
+Chế độ AI quyết định tưới dựa trên dự đoán lượng nước tối ưu từ mô hình Hybrid FAO-56 + XGBoost.
+Ưu điểm so với Auto: tính đến thời tiết, loại cây, giai đoạn sinh trưởng → tiết kiệm nước ~20-30%.
+Cách hoạt động: AI service tính depletion dự báo 24h → so sánh với RAW → quyết định tưới bao nhiêu mm → chuyển mm thành phút bơm.
+Bật tại: Dashboard → khung Điều khiển → chọn chế độ AI.
+Model tự cải thiện theo thời gian nhờ dữ liệu thực tế thu thập hàng ngày.
+
+---
+
+# Lịch Tưới Tự Động (Schedules)
+Lịch tưới cho phép hẹn giờ tưới kể cả khi bạn offline:
+- Vào Cài đặt vườn → tab Lịch tưới → Tạo lịch mới.
+- Chọn giờ bắt đầu, thời lượng (phút), các ngày trong tuần lặp lại.
+- Bật/tắt lịch từng cái riêng lẻ.
+Lịch được backend thực thi qua Spring Scheduler, gửi lệnh MQTT đúng thời điểm.
+Có thể kết hợp nhiều lịch (sáng + tối). Lịch bị bỏ qua nếu đang tưới dở.
+Lịch sử: xem Lịch sử tưới, nguồn kích hoạt = "Lịch tự động".
+
+---
+
+# Dữ Liệu Cảm Biến và Giám Sát
+Cảm biến ESP32 gửi dữ liệu mỗi 30 giây qua MQTT Topic: garden/{deviceId}/sensor.
+Loại dữ liệu: soil_moisture (%), temperature (°C), humidity (%), light_intensity (lux).
+Xem realtime tại trang Giám sát. Xem lịch sử và biểu đồ tại trang Chi tiết thiết bị.
+Backend lưu tất cả vào bảng sensor_data (MySQL). Lọc và tổng hợp theo giờ.
+Nếu cảm biến trả về giá trị bất thường, hệ thống gửi cảnh báo.
+
+---
+
+# Dữ Liệu Thời Tiết - OpenWeatherMap
+Hệ thống tích hợp OpenWeatherMap API để lấy:
+- Thời tiết hiện tại: nhiệt độ, độ ẩm, gió, mưa, bức xạ mặt trời.
+- Dự báo 5 ngày theo giờ.
+Widget thời tiết trên Dashboard cập nhật mỗi 30 phút.
+Dữ liệu thời tiết là đầu vào chính cho tính toán ET₀ (FAO-56).
+Dự báo mưa giúp chế độ AI giảm hoặc bỏ qua tưới trước khi mưa đến.
+Thông tin hiển thị: nhiệt độ, độ ẩm không khí, tốc độ gió, xác suất mưa, chỉ số UV.
+
+---
+
+# AI Predictions - Trang Dự Đoán
+Xem kết quả dự đoán AI tại: Tự động hóa → Dự đoán ML.
+Hiển thị:
+- Lượng nước dự đoán cho 24h tới (mm và lít).
+- Độ chính xác model: R², RMSE.
+- Phân tích đóng góp: bao nhiêu % từ FAO-56, bao nhiêu từ XGBoost.
+- Biểu đồ dự báo depletion theo giờ.
+Kết quả cập nhật mỗi 1 giờ khi backend gọi AI service.
+Model retrain hàng tuần qua BatchJobService với dữ liệu irrigation history mới nhất.
+
+---
+
+# Lịch Sử Tưới
+Xem tại menu: Lịch sử tưới.
+Có thể lọc theo: thiết bị, khoảng thời gian (từ ngày - đến ngày).
+Thông tin mỗi bản ghi: thời điểm bắt đầu/kết thúc, thời lượng (phút), lượng nước ước tính (lít), nguồn kích hoạt.
+Nguồn kích hoạt gồm: Thủ công, Lịch tự động, AI, Ngưỡng độ ẩm.
+Dữ liệu lịch sử dùng để retrain model AI.
+
+---
+
+# Thông Báo (Notifications)
+Hệ thống gửi thông báo trong các trường hợp:
+- Thiết bị mất kết nối (offline).
+- Độ ẩm đất xuống dưới ngưỡng tối thiểu.
+- Hoàn thành tưới tự động.
+- Cảnh báo AI: phát hiện bất thường độ ẩm.
+- Cảnh báo thời tiết: sắp có mưa lớn.
+Tùy chỉnh tại: Cài đặt → Thông báo. Chọn loại thông báo và kênh (in-app, email).
+Nếu không nhận được thông báo: kiểm tra trình duyệt đã cho phép notification chưa, kiểm tra thư mục Spam (email).
+
+---
+
+# Tài Khoản và Phân Quyền
+Hai vai trò chính:
+Admin: quản lý tất cả người dùng và thiết bị, quản lý thư viện cây trồng và đất, xem system logs.
+User thường: quản lý thiết bị của mình, xem dashboard và lịch sử, tạo lịch tưới.
+Đổi thông tin tài khoản: vào Profile → chỉnh sửa tên, điện thoại, ảnh đại diện, mật khẩu.
+Quên mật khẩu: trang Đăng nhập → Quên mật khẩu → nhập email → link gửi về email (hiệu lực 24h).
+
+---
+
+# Thư Viện Cây Trồng và Loại Đất
+Admin quản lý tại: Quản lý → Thư viện cây trồng và Quản lý → Thư viện đất.
+Thư viện cây trồng: tên cây, Kc theo từng giai đoạn, depletion fraction (p), độ sâu rễ điển hình.
+Thư viện đất: tên đất, Field Capacity (%), Wilting Point (%), Water Holding Capacity, tỷ lệ thẩm thấu.
+Khi thêm thiết bị, chọn loại cây và đất → hệ thống tự tính TAW, RAW cho thiết bị đó.
+Thư viện có thể bổ sung loại cây/đất mới bất kỳ lúc nào.
+
+---
+
+# Mùa Vụ Cây Trồng (Crop Season)
+Mỗi thiết bị có thể được gán một mùa vụ đang hoạt động.
+Mỗi mùa vụ lưu: loại cây trồng, giai đoạn hiện tại (Initial/Development/Mid/Late), ngày bắt đầu, ngày kết thúc dự kiến.
+Giai đoạn sinh trưởng quyết định giá trị Kc hiện tại → ảnh hưởng trực tiếp đến ETc tính ra.
+Quản lý mùa vụ từ trang Chi tiết thiết bị → tab Mùa vụ.
+Khi kết thúc mùa vụ, tạo mùa vụ mới để theo dõi chu kỳ tiếp theo.
+
+---
+
+# MQTT - Giao Thức Liên Lạc IoT
+MQTT (Message Queuing Telemetry Transport) là giao thức nhẹ cho IoT, dùng kết nối TCP/IP.
+Data flow:
+  ESP32 → PUBLISH → Broker (Mosquitto, port 1883) → SUBSCRIBE → Backend Spring Boot
+  Backend → PUBLISH → Broker → SUBSCRIBE → ESP32
+Topic format:
+  garden/{deviceId}/sensor → ESP32 gửi data cảm biến
+  garden/{deviceId}/command → Backend gửi lệnh bơm
+  garden/{deviceId}/status → ESP32 báo trạng thái
+MQTT Broker mặc định chạy local (localhost:1883). Cấu hình trong mosquitto/config/mosquitto.conf.
+Nếu MQTT bị lỗi, dữ liệu cảm biến sẽ không cập nhật và thiết bị sẽ offline.
+
+---
+
+# System Logs - Nhật Ký Hệ Thống
+Chỉ dành cho Admin. Vào menu: Nhật ký hệ thống.
+Hiển thị: backend logs, MQTT events, AI service calls, lỗi hệ thống.
+Lọc theo: mức độ (INFO, WARN, ERROR), khoảng thời gian, từ khóa.
+Dùng để debug khi có sự cố: thiết bị không nhận lệnh, AI service lỗi, MQTT timeout.
+Log file được lưu tại: backend/logs/smart-irrigation.log, xoay vòng 10MB/30 ngày.

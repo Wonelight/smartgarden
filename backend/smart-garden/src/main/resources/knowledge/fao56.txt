@@ -1,0 +1,124 @@
+# FAO-56 Tổng Quan
+FAO-56 (Food and Agriculture Organization Paper No. 56) là tiêu chuẩn quốc tế được FAO phát hành năm 1998 để tính toán nhu cầu nước cho cây trồng. Đây là cơ sở khoa học cho mọi quyết định tưới tiêu trong hệ thống Smart Garden.
+Hệ thống dùng FAO-56 theo kiến trúc Hybrid: FAO-56 tính baseline vật lý, XGBoost học phần dư để hiệu chỉnh sai số thực tế. Kết hợp hai lớp tạo ra dự đoán chính xác cao hơn từng phương pháp riêng lẻ.
+Các thông số đầu vào: nhiệt độ, độ ẩm không khí, tốc độ gió, bức xạ mặt trời, lượng mưa, loại đất, loại cây trồng, độ sâu vùng rễ.
+
+---
+
+# ET₀ - Bốc Thoát Hơi Tham Chiếu (Reference Evapotranspiration)
+ET₀ là lượng nước bốc thoát hơi từ bề mặt cỏ tham chiếu tiêu chuẩn (cỏ xanh cao 0.12m, không bị hạn nước). Đơn vị: mm/ngày hoặc mm/giờ.
+Công thức Penman-Monteith (FAO-56):
+  ET₀ = [0.408 × Δ × (Rn - G) + γ × (900/(T+273)) × u₂ × (es - ea)] / [Δ + γ × (1 + 0.34 × u₂)]
+Trong đó: Δ = độ dốc áp suất hơi bão hòa; Rn = bức xạ ròng (MJ/m²/ngày); G = nhiệt lượng đất (thường bỏ qua ban ngày); γ = hằng số tâm thể trắc nghiệm; T = nhiệt độ trung bình; u₂ = tốc độ gió ở độ cao 2m (m/s); es = áp suất hơi bão hòa; ea = áp suất hơi thực tế.
+Hệ thống tính ET₀ theo giờ (hourly) dựa trên dữ liệu OpenWeatherMap API.
+
+---
+
+# ETc và Hệ Số Kc - Nhu Cầu Nước Thực Tế Của Cây
+ETc (Crop Evapotranspiration) là lượng nước thực tế cây cần mỗi ngày/giờ.
+Công thức: ETc = ET₀ × Kc
+Kc (Crop Coefficient) là hệ số cây trồng, thay đổi theo giai đoạn sinh trưởng:
+- Giai đoạn đầu (Initial): Kc thấp (0.3 - 0.4), cây nhỏ chưa che phủ đất.
+- Giai đoạn phát triển (Development): Kc tăng dần theo diện tích lá.
+- Giai đoạn giữa mùa (Mid-season): Kc cao nhất (0.8 - 1.25), cây trưởng thành.
+- Giai đoạn cuối (Late): Kc giảm dần, cây bắt đầu già.
+Ví dụ Kc theo FAO-56: Lúa Kc_mid=1.2, Ngô Kc_mid=1.2, Cà chua Kc_mid=1.15, Rau xà lách Kc_mid=1.0.
+Admin cài đặt Kc cho từng mùa vụ trong thư viện cây trồng.
+
+---
+
+# TAW - Tổng Lượng Nước Khả Dụng (Total Available Water)
+TAW là tổng lượng nước đất có thể giữ mà cây có thể hút được, tính từ Field Capacity đến Wilting Point.
+Công thức: TAW = 1000 × (FC - WP) × root_depth
+  FC = Field Capacity (độ ẩm khi đất đầy nước sau khi trọng lực thoát hết, %)
+  WP = Wilting Point (độ ẩm tối thiểu khi cây héo rũ, %)
+  root_depth = độ sâu vùng rễ (m)
+  1000 = hệ số chuyển đổi m → mm
+Ví dụ: FC=30%, WP=15%, root_depth=0.5m → TAW = 1000 × 0.15 × 0.5 = 75 mm
+TAW lớn → đất giữ nhiều nước, ít cần tưới. TAW nhỏ → đất giữ ít nước (đất cát), cần tưới thường xuyên.
+TAW cho shallow layer = TAW × 0.4; TAW cho deep layer = TAW × 0.6.
+
+---
+
+# RAW - Lượng Nước Dễ Hấp Thụ và Quyết Định Tưới
+RAW (Readily Available Water) là lượng nước cây hút dễ dàng không bị water stress. Đây là ngưỡng tưới.
+Công thức: RAW = p × TAW
+  p (depletion fraction) theo loại cây: Lúa p=0.20 (nhạy với khô), Ngô p=0.55, Cà chua p=0.40, Rau xà lách p=0.30.
+Quy tắc tưới cơ bản FAO-56:
+  Depletion < RAW → KHÔNG cần tưới (đất còn đủ nước dễ hấp thụ).
+  Depletion ≥ RAW → CẦN tưới để tránh stress.
+Hệ thống Smart Garden dùng ngưỡng 50% RAW để an toàn hơn: nếu Depletion < 0.5×RAW thì chưa tưới.
+Lượng tưới tối ưu = Depletion (tưới đủ để đưa đất về Field Capacity, không thừa).
+
+---
+
+# DC - Depletion (Lượng Nước Thiếu Hụt Tích Lũy)
+Depletion (DC) là lượng nước đã mất từ vùng rễ. DC = 0 nghĩa là đất đầy nước (Field Capacity).
+Công thức cập nhật theo thời gian:
+  DC(i) = DC(i-1) + ETc - Rain_effective - Irrigation
+  DC(i-1): depletion bước trước; ETc: nước cây cần; Rain_effective: mưa hiệu quả (mm); Irrigation: lượng tưới (mm).
+Điều kiện: 0 ≤ DC ≤ TAW luôn đúng (đất không thể khô hơn Wilting Point).
+Ví dụ:
+  Ban đầu: DC=0 (đất đầy nước)
+  Ngày 2: ETc=5mm, Rain=2mm → DC = 0 + 5 - 2 - 0 = 3mm
+  Ngày 3: ETc=5mm, không mưa, không tưới → DC = 3 + 5 = 8mm
+Khi DC đạt ngưỡng RAW → hệ thống kích hoạt bơm.
+
+---
+
+# Field Capacity và Wilting Point - Đặc Tính Đất
+Field Capacity (FC): Độ ẩm đất sau khi nước trọng lực thoát hết (2-3 ngày sau mưa lớn). Cây có thể hút nước dễ dàng.
+Wilting Point (WP): Độ ẩm tối thiểu khi cây không còn hút được nước và bắt đầu héo vĩnh viễn.
+Giá trị điển hình theo loại đất (% thể tích):
+- Đất cát (Sandy): FC=10-18%, WP=5-8%, TAW thấp (cần tưới thường)
+- Đất thịt pha cát (Sandy loam): FC=18-26%, WP=9-14%
+- Đất thịt (Loam): FC=25-35%, WP=12-18%
+- Đất thịt pha sét (Clay loam): FC=30-40%, WP=17-24%
+- Đất sét (Clay): FC=35-50%, WP=20-30%, TAW cao (giữ nước tốt)
+Hệ số thẩm thấu nước (infiltration_shallow_ratio) theo loại đất:
+  Đất cát 0.55, cát pha 0.60, thịt 0.70, thịt pha sét 0.75, sét 0.80, phù sa 0.70.
+
+---
+
+# Phân Tầng Đất - Shallow và Deep Layers
+Hệ thống chia vùng rễ thành 2 tầng để mô phỏng chính xác hơn:
+- Tầng nông (Shallow): 40% dung tích TAW (top 40% độ sâu rễ), nhận 40% ETc.
+- Tầng sâu (Deep): 60% dung tích TAW (bottom 60% độ sâu rễ), nhận 60% ETc.
+Phân bổ nước vào (mưa, tưới) theo tỷ lệ thẩm thấu đất:
+  Rain/Irrigation shallow = tổng × infiltration_shallow_ratio (mặc định 70%)
+  Rain/Irrigation deep = tổng × (1 - infiltration_shallow_ratio) (mặc định 30%)
+Depletion tổng hợp = 0.4 × shallow_depletion + 0.6 × deep_depletion (tầng sâu có nhiều rễ hơn).
+Mưa/tưới dùng cùng tỷ lệ vì cùng cơ chế thẩm thấu từ trên xuống.
+
+---
+
+# Effective Rainfall - Mưa Hiệu Quả
+Không phải toàn bộ lượng mưa đều có ích cho cây. Mưa hiệu quả loại bỏ:
+- Chảy tràn bề mặt (runoff): Mưa lớn, đất đã bão hòa.
+- Thấm sâu (deep percolation): Nước thấm xuống dưới vùng rễ.
+Phương pháp USDA SCS:
+  Nếu P_gross ≤ 8.3mm: Rain_effective ≈ 0.7 × P_gross
+  Nếu P_gross > 8.3mm: Rain_effective = 0.7 × P_gross - 0.2 × (P_gross - 8.3)
+Mưa hiệu quả được tính tự động từ dữ liệu OpenWeatherMap để điều chỉnh Depletion.
+
+---
+
+# Hybrid FAO-56 + XGBoost - Mô Hình Dự Đoán
+Kiến trúc 2 lớp:
+1. FAO-56 Physics: Tính predicted_depletion_24h dựa trên dữ liệu thời tiết, đặc tính đất-cây. Giải thích ~80-90% phương sai.
+2. XGBoost ML: Học residual (phần dư) = thực_tế - FAO_prediction. Bắt các yếu tố mà vật lý bỏ qua như drift cảm biến, mưa cục bộ, điều kiện bất thường.
+Kết hợp: final_depletion = fao_pred + ml_residual.
+Sau đó quyết định tưới: irrigation_mm = max(0, predicted_depletion - current_water_reserve).
+Model XGBoost được retrain hàng tuần với dữ liệu mới qua BatchJobService.
+Độ chính xác: R² thường >0.85, RMSE <2mm sau vài tuần thu thập dữ liệu.
+
+---
+
+# Water Balance State - Trạng Thái Cân Bằng Nước
+Water Balance State được lưu vào MySQL (bảng device_water_balance_state) cho từng thiết bị.
+Các trường: shallow_depletion, deep_depletion, shallow_taw, deep_taw, last_updated.
+Cập nhật mỗi giờ khi AI service được gọi. Được lấy ra mỗi lần tính toán để tiếp tục từ trạng thái trước.
+Nếu chưa có state (thiết bị mới) → khởi tạo với depletion = 0 (đất giả định đã được tưới đủ).
+Công thức cập nhật hourly:
+  new_depletion = old_depletion + ETc_hourly - rain_effective_hourly - irrigation_hourly
+  sensor_adjustment: nếu sensor đo độ ẩm cao → giảm depletion, nếu thấp → tăng depletion.

@@ -17,6 +17,7 @@ public record UpdateWaterBalanceStateRequest(
         @NotNull Float deepRaw,
         Float lastIrrigation,
         Float soilMoisAvg,
-        List<Map<String, Object>> soilMoisHistory
+        List<Map<String, Object>> soilMoisHistory,
+        Float etcValue
 ) {
 }

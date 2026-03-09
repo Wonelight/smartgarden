@@ -52,6 +52,9 @@ public final class ApiPaths {
     public static final String SEG_DEVICE_SENSOR_DATA_HOURLY = SEG_DEVICE_SENSOR_DATA + "/hourly";
     public static final String SEG_DEVICE_WATER_BALANCE_STATE = "/devices/{deviceId}/water-balance-state";
 
+    // ---------- Chat / RAG ----------
+    public static final String SEG_CHAT = "/chat";
+
     // ---------- AI Service ----------
     public static final String SEG_AI = "/ai";
     public static final String SEG_AI_PREDICT = SEG_AI + "/predict";

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, X, Send, Bot, Sparkles, ChevronDown, Trash2, ArrowRight } from 'lucide-react';
+import { apiClient } from '../api/client';
 
 // ── Category types ────────────────────────────────────────────────────
 type Category = 'device' | 'irrigation' | 'ai' | 'weather' | 'account' | 'system';
@@ -315,6 +316,13 @@ const FALLBACKS = [
     'Mình chưa tìm được câu trả lời phù hợp 😅. Hãy thử chọn một gợi ý bên dưới, hoặc vào trang **Hỗ trợ** nhé!',
     'Câu hỏi này nằm ngoài phạm vi của mình rồi 🤔. Bạn thử đặt lại bằng từ khóa khác, hoặc chọn câu gợi ý bên dưới!',
     'Mình chưa có thông tin về điều đó 😊. Thử chọn câu hỏi gợi ý hoặc vào trang **Hỗ trợ** để liên hệ trực tiếp nhé!',
+    'Hmm, mình không chắc về câu này 🌱. Bạn thử hỏi về **thiết bị**, **tưới tiêu**, **AI dự đoán** hoặc **thời tiết** xem sao?',
+    'Câu hỏi hay đấy, nhưng mình chưa được học về chủ đề này 🤖. Chọn một mục từ danh sách gợi ý bên dưới để mình giúp tốt hơn nhé!',
+    'Mình là trợ lý chuyên về hệ thống **Smart Garden** thôi 🌿, nên câu này hơi vượt tầm mình rồi. Thử hỏi về cách cài đặt, tưới tiêu hoặc AI nhé!',
+    'Ối, mình chịu câu này rồi 😓. Nhưng bạn có thể thử hỏi lại với từ khóa cụ thể hơn như **"lịch tưới"**, **"chế độ AI"**, hay **"thiết bị offline"** không?',
+    'Mình đang học hỏi thêm mỗi ngày, nhưng chưa biết về điều này 📚. Trong lúc đó, hãy chọn một câu hỏi gợi ý để mình hỗ trợ ngay nhé!',
+    'Thông tin này nằm ngoài kiến thức hiện tại của mình 🔍. Bạn thử tìm trong trang **Hỗ trợ** hoặc xem **Tài liệu hướng dẫn** của hệ thống nhé!',
+    'Câu hỏi này thú vị nhưng mình chưa có dữ liệu để trả lời 💡. Thử đặt câu hỏi về **cảm biến**, **lịch sử tưới** hay **cấu hình cây trồng** xem sao?',
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -326,6 +334,10 @@ interface ChatMessage {
     relatedIds?: string[];
     navPath?: string;
     navLabel?: string;
+    /** Titles of knowledge chunks retrieved by the RAG backend */
+    sources?: string[];
+    /** True when the reply came from Gemini AI, false/undefined = local fallback */
+    fromAi?: boolean;
 }
 
 const STORAGE_KEY = 'chatbot_messages_v2';
@@ -536,7 +548,7 @@ export const ChatbotModal: React.FC = () => {
         sessionStorage.removeItem(STORAGE_KEY);
     };
 
-    const sendMessage = useCallback((text: string) => {
+    const sendMessage = useCallback(async (text: string) => {
         if (!text.trim() || isTyping) return;
 
         const userMsg: ChatMessage = {
@@ -549,9 +561,23 @@ export const ChatbotModal: React.FC = () => {
         setInputValue('');
         setIsTyping(true);
 
-        setTimeout(() => {
+        let botMsg: ChatMessage;
+        try {
+            type BackendResp = { success: boolean; data: { reply: string; fromAi: boolean; sources: string[] } };
+            const resp = await apiClient.post<BackendResp>('/chat', { message: text.trim() });
+            const { reply, fromAi, sources } = resp.data.data;
+            botMsg = {
+                id: uid(),
+                role: 'bot',
+                text: reply,
+                timestamp: new Date(),
+                fromAi,
+                sources: sources?.length ? sources : undefined,
+            };
+        } catch {
+            // Backend unavailable — fall back to local BM25 Q&A
             const result = findBestMatch(text);
-            const botMsg: ChatMessage = {
+            botMsg = {
                 id: uid(),
                 role: 'bot',
                 text: result.answer,
@@ -560,9 +586,10 @@ export const ChatbotModal: React.FC = () => {
                 navPath: result.navPath,
                 navLabel: result.navLabel,
             };
-            setIsTyping(false);
-            setMessages((prev) => [...prev, botMsg]);
-        }, 500 + Math.random() * 500);
+        }
+
+        setIsTyping(false);
+        setMessages((prev) => [...prev, botMsg]);
     }, [isTyping]);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -625,7 +652,7 @@ export const ChatbotModal: React.FC = () => {
                             <h3 className="font-semibold text-sm leading-tight">Smart Garden Assistant</h3>
                             <p className="text-[11px] text-teal-100 flex items-center gap-1 mt-0.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-300 inline-block animate-pulse" />
-                                {QA_DATA.length} chủ đề hỗ trợ
+                                Gemini AI · {QA_DATA.length} chủ đề
                             </p>
                         </div>
                         {/* Clear chat */}
@@ -686,6 +713,21 @@ export const ChatbotModal: React.FC = () => {
                                             <ArrowRight className="w-3 h-3" />
                                             {msg.navLabel}
                                         </button>
+                                    )}
+
+                                    {/* AI source attribution */}
+                                    {msg.role === 'bot' && msg.fromAi && msg.sources && msg.sources.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                            <span className="text-[10px] text-slate-400 font-medium">📚</span>
+                                            {msg.sources.map((src) => (
+                                                <span
+                                                    key={src}
+                                                    className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-200"
+                                                >
+                                                    {src}
+                                                </span>
+                                            ))}
+                                        </div>
                                     )}
 
                                     {/* Related questions */}

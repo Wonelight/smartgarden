@@ -120,6 +120,21 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
                 .collect(Collectors.toList());
         state.setDepletionHistory(deplHist);
 
+        // Append ETc value vào etcHistory (để tính etc_rolling 6h/12h/24h)
+        if (request.etcValue() != null && request.etcValue() > 0) {
+            List<Map<String, Object>> etcHist = state.getEtcHistory() != null
+                    ? new ArrayList<>(state.getEtcHistory())
+                    : new ArrayList<>();
+            Map<String, Object> etcEntry = new HashMap<>();
+            etcEntry.put("timestamp", LocalDateTime.now().format(ISO_FORMATTER));
+            etcEntry.put("value", request.etcValue());
+            etcHist.add(etcEntry);
+            etcHist = etcHist.stream()
+                    .filter(e -> parseTimestamp((String) e.get("timestamp")).isAfter(cutoff))
+                    .collect(Collectors.toList());
+            state.setEtcHistory(etcHist);
+        }
+
         state = stateRepository.save(state);
         log.debug("Updated water balance state for device {}: shallow_depl={}, deep_depl={}, weighted={}",
                 deviceId, state.getShallowDepletion(), state.getDeepDepletion(), state.getWeightedDepletion());
@@ -183,6 +198,7 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
                 .lastIrrigation(0.0f)
                 .soilMoisHistory(new ArrayList<>())
                 .depletionHistory(new ArrayList<>())
+                .etcHistory(new ArrayList<>())
                 .build();
         log.info("Created default water balance state for device {} (loam defaults: TAW={}/{}, RAW={}/{})",
                 device.getId(), shallowTaw, deepTaw, shallowRaw, deepRaw);
@@ -219,7 +235,9 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
                 rainLast6h,
                 rainLast12h,
                 rainLast24h,
-                0.0f, 0.0f, 0.0f // etc_rolling: chưa lưu history, để 0
+                sumEtcInWindow(state.getEtcHistory(), 6),
+                sumEtcInWindow(state.getEtcHistory(), 12),
+                sumEtcInWindow(state.getEtcHistory(), 24)
         );
     }
 
@@ -246,16 +264,24 @@ public class WaterBalanceStateServiceImpl implements WaterBalanceStateService {
         return (float) (last - first);
     }
 
-    /** Tổng rain (0/1) từ sensor trong window — proxy cho rain_last_*h. */
+    /**
+     * Hệ thống không có rain gauge — sensor rainDetected là binary 0/1 không đo được mm.
+     * Rain (mm) được tính từ OpenWeather trong AiPredictionServiceImpl.sumWeatherRainInWindow().
+     * Method này trả về 0 để tránh nhầm lẫn sensor count với mm mưa.
+     */
     private float sumRainInWindow(Long deviceId, int hours) {
-        LocalDateTime end = LocalDateTime.now();
-        LocalDateTime start = end.minusHours(hours);
-        List<com.example.smart_garden.entity.SensorData> list = sensorDataRepository
-                .findByDeviceIdAndTimestampBetween(deviceId, start, end);
+        return 0.0f;
+    }
+
+    /** Sum ETc (mm) tích lũy trong cửa sổ [now-hours, now] từ etcHistory. */
+    private float sumEtcInWindow(List<Map<String, Object>> etcHistory, int hours) {
+        if (etcHistory == null || etcHistory.isEmpty()) return 0.0f;
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(hours);
         float sum = 0.0f;
-        for (com.example.smart_garden.entity.SensorData sd : list) {
-            if (Boolean.TRUE.equals(sd.getRainDetected())) {
-                sum += 1.0f;
+        for (Map<String, Object> entry : etcHistory) {
+            if (parseTimestamp((String) entry.get("timestamp")).isAfter(cutoff)) {
+                Object val = entry.get("value");
+                if (val instanceof Number) sum += ((Number) val).floatValue();
             }
         }
         return sum;
