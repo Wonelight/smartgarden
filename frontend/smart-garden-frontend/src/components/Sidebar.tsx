@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
     Home, User, HelpCircle, X, LogOut, Users, Settings, Bell, ScrollText,
-    Cpu, BarChart3, History, Sprout, Layers, Zap, Flower2
+    Cpu, BarChart3, History, Sprout, Layers, Zap, Flower2, ScanSearch
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { isAdmin as checkIsAdmin } from '../utils/roleUtils';
@@ -171,6 +171,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen: controlledOpen, onClos
                             >
                                 <History className="w-5 h-5 shrink-0" />
                                 Lịch sử
+                            </NavLink>
+                            <NavLink
+                                to="/plant-diagnosis"
+                                onClick={closeSidebar}
+                                className={({ isActive }) => `
+                                    flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                                    ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}
+                                `}
+                            >
+                                <ScanSearch className="w-5 h-5 shrink-0" />
+                                Chẩn đoán bệnh cây
                             </NavLink>
                         </div>
                     </div>

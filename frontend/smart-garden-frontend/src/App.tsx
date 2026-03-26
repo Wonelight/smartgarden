@@ -20,6 +20,7 @@ import { DeviceDetailPage } from './pages/DeviceDetailPage';
 import { MonitoringPage } from './pages/MonitoringPage';
 import { IrrigationHistoryPage } from './pages/IrrigationHistoryPage';
 import { PredictionsPage } from './pages/PredictionsPage';
+import { PlantDiagnosisPage } from './pages/PlantDiagnosisPage';
 import { GardenConfigPage } from './pages/GardenConfigPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
@@ -204,6 +205,14 @@ function App() {
               <Route path="config" element={<Navigate to="/garden-config" replace />} />
               <Route path="predictions" element={<PredictionsPage />} />
             </Route>
+            <Route
+              path="/plant-diagnosis"
+              element={
+                <ProtectedRoute>
+                  <PlantDiagnosisPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/irrigation-config"
               element={<Navigate to="/garden-config" replace />}

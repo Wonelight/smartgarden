@@ -70,7 +70,6 @@ public class SensorDataBuffer {
 
         try {
             sensorDataRepository.saveAll(batch);
-            log.info("⚡ Flushed {} sensor data records to database", batch.size());
         } catch (Exception e) {
             log.error("❌ Failed to flush sensor data buffer ({} records): {}",
                     batch.size(), e.getMessage(), e);

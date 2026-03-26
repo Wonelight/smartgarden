@@ -55,8 +55,7 @@ public class SecurityExceptionHandler {
                 log.debug("Authentication failed: {} - {}", request.getRequestURI(), ex.getMessage());
                 return ResponseEntity
                                 .status(errorCode.getHttpStatus())
-                                .body(ApiResponse.fail(errorCode.getCode(),
-                                                ex.getMessage() != null ? ex.getMessage() : errorCode.getMessage()));
+                                .body(ApiResponse.fail(errorCode.getCode(), errorCode.getMessage()));
         }
 
         @ExceptionHandler(AccessDeniedException.class)

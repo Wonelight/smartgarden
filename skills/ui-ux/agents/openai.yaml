@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI/UX Design"
+  short_description: "Audit and improve product UI/UX"
+  default_prompt: "Use $ui-ux to review and improve this interface for clarity, hierarchy, and usability."

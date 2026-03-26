@@ -60,6 +60,17 @@ public final class ApiPaths {
     public static final String SEG_AI_PREDICT = SEG_AI + "/predict";
     public static final String SEG_AI_TRAIN = SEG_AI + "/train";
     public static final String SEG_AI_RESULTS = SEG_AI + "/results/{deviceId}";
+
+    // ---------- Plant Analysis / Camera ----------
+    public static final String SEG_PLANT = "/plant";
+    public static final String SEG_PLANT_ANALYZE = SEG_PLANT + "/analyze";
+    public static final String SEG_PLANT_CAMERA = SEG_PLANT + "/camera";
+    public static final String SEG_PLANT_CAMERA_STREAM = SEG_PLANT_CAMERA + "/stream";
+    public static final String SEG_PLANT_CAMERA_CAPTURE = SEG_PLANT_CAMERA + "/capture";
+    public static final String SEG_PLANT_CAMERA_STATUS = SEG_PLANT_CAMERA + "/status";
+    public static final String SEG_PLANT_CAMERA_OPEN = SEG_PLANT_CAMERA + "/open";
+    public static final String SEG_PLANT_CAMERA_CLOSE = SEG_PLANT_CAMERA + "/close";
+
     public static final String SEG_USERS = "/users";
     public static final String SEG_USERS_REGISTER = "/users/register";
     public static final String SEG_USERS_ME = "/users/me";

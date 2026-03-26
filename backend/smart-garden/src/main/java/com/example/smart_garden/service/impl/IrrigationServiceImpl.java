@@ -188,7 +188,7 @@ public class IrrigationServiceImpl implements IrrigationService {
 
         irrigationHistoryRepository.save(history);
         log.info("Ingested irrigation history: device={}, duration={}s, vol={}L", deviceCode, payload.getDuration(),
-                payload.getWaterVolume());
+                computedWaterVolume);
     }
 
     @Override

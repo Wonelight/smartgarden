@@ -13,5 +13,11 @@ numpy>=1.26
 pandas>=2.2
 scikit-learn>=1.5
 xgboost>=2.0
+optuna>=3.6
 joblib>=1.4
 matplotlib>=3.8
+
+# Plant Image Analysis (YOLO)
+ultralytics>=8.4.0
+Pillow>=10.0
+opencv-python>=4.8.0

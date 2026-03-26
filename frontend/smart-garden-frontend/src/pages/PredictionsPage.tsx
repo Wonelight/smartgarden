@@ -82,7 +82,7 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null, isOffline?: 
     });
 
     const predictMutation = useMutation({
-        mutationFn: (payload: { deviceId: number; sensorDataId: number }) => aiApi.predict(payload),
+        mutationFn: (deviceId: number) => aiApi.predict({ deviceId, sensorDataId: null }),
         onSuccess: () => {
             toast.success('Đã gọi dự báo AI thành công.');
             queryClient.invalidateQueries({ queryKey: ['aiHistory', selectedDeviceId] });
@@ -193,7 +193,7 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null, isOffline?: 
                                 toast.error('Thiết bị đang offline, không thể gọi dự báo AI thủ công.');
                                 return;
                             }
-                            predictMutation.mutate({ deviceId: selectedDeviceId, sensorDataId: latestSensor.id });
+                            predictMutation.mutate(selectedDeviceId);
                         }}
                         disabled={predictMutation.isPending || isOffline}
                         className={`px-4 py-2 text-white rounded-xl font-medium transition-colors ${isOffline ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 disabled:opacity-50'}`}
@@ -252,7 +252,7 @@ const MLPredictionsTab: React.FC<{ selectedDeviceId: number | null, isOffline?: 
                             toast.error('Thiết bị đang offline, không thể gọi dự báo AI thủ công.');
                             return;
                         }
-                        predictMutation.mutate({ deviceId: selectedDeviceId, sensorDataId: latestSensor!.id });
+                        predictMutation.mutate(selectedDeviceId);
                     }}
                     disabled={predictMutation.isPending || isOffline}
                     className={`px-4 py-2 text-white rounded-xl font-medium transition-colors ${isOffline ? 'bg-slate-400 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 disabled:opacity-50'}`}

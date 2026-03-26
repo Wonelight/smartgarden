@@ -252,6 +252,8 @@ class TrainBatchRequest(BaseModel):
 
 class TrainBatchResponse(BaseModel):
     """Kết quả retrain gửi về backend."""
+    model_config = {"protected_namespaces": ()}
+
     status: str
     n_samples: int
     n_actual: int          # số mẫu có label thực tế

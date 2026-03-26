@@ -4,7 +4,7 @@ import type { ApiResponse } from '../types';
 /** Request body for triggering AI prediction */
 export interface AiPredictRequest {
     deviceId: number;
-    sensorDataId: number;
+    sensorDataId?: number | null;
 }
 
 /** Response from AI prediction (immediate) */

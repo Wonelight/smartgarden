@@ -31,7 +31,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new UsernameNotFoundException("User is disabled: " + username);
+            throw new org.springframework.security.authentication.DisabledException("Account is disabled: " + username);
         }
 
         List<GrantedAuthority> authorities = buildAuthorities(user);

@@ -248,6 +248,8 @@ const Fao56OverviewCard = ({ deviceId }: { deviceId: number | null }) => {
         queryFn: () => waterBalanceApi.getWaterBalanceState(deviceId!),
         enabled: !!deviceId,
         refetchInterval: 60000,
+        staleTime: 30_000,
+        placeholderData: (prev) => prev,
     });
 
     if (isLoading) {
@@ -390,6 +392,8 @@ const MLPredictionOverviewCard = ({ deviceId, gardenArea }: { deviceId: number |
         queryFn: () => aiApi.getHistory(deviceId!),
         enabled: !!deviceId,
         refetchInterval: 60000,
+        staleTime: 60_000,
+        placeholderData: (prev) => prev,
     });
 
     if (isLoading) {
@@ -518,6 +522,8 @@ export const DashboardPage: React.FC = () => {
     const { data: devices = [] } = useQuery({
         queryKey: ['myDevices'],
         queryFn: deviceApi.getMyDevices,
+        staleTime: 60_000,
+        placeholderData: (prev) => prev,
     });
 
     const { selectedDeviceId: deviceId } = useMonitoringDevice();
@@ -549,6 +555,8 @@ export const DashboardPage: React.FC = () => {
         queryFn: () => sensorApi.getLatestByDeviceId(deviceId!),
         enabled: !!deviceId,
         refetchInterval: wsConnected ? 30000 : 10000,
+        staleTime: 5_000,
+        placeholderData: (prev) => prev,
     });
 
     // ---- Sensor Range (24h) ----
@@ -562,7 +570,8 @@ export const DashboardPage: React.FC = () => {
         queryKey: ['sensorRange24h', deviceId, timeWindow.start],
         queryFn: () => sensorApi.getByDeviceIdAndTimeRange(deviceId!, timeWindow.start, timeWindow.end),
         enabled: !!deviceId,
-        staleTime: 60000,
+        staleTime: 60_000,
+        placeholderData: (prev) => prev,
     });
 
     // ---- Irrigation Config ----
@@ -570,6 +579,8 @@ export const DashboardPage: React.FC = () => {
         queryKey: ['irrigationConfig', deviceId],
         queryFn: () => irrigationApi.getConfigByDeviceId(deviceId!),
         enabled: !!deviceId,
+        staleTime: 300_000,
+        placeholderData: (prev) => prev,
     });
 
     // ---- Refresh ----

@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # ── ML Models ──────────────────────────────────────
     MODEL_DIR: str = "app/ml/pipelines"
 
+    # ── Plant Image Analysis (YOLO) ────────────────────
+    PLANT_MODEL_DIR: str = "app/ml/models/plant"
+    YOLO_DEFAULT_CONFIDENCE: float = 0.25
+
     # ── Storage ────────────────────────────────────────
     USE_DB_STORAGE: bool = True
 

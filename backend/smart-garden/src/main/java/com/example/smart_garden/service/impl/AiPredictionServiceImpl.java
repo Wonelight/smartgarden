@@ -70,6 +70,7 @@ public class AiPredictionServiceImpl implements AiPredictionService {
     private final com.example.smart_garden.mqtt.MqttCommandSender mqttCommandSender;
     private final SystemLogPublisher sysLog;
     private final com.example.smart_garden.repository.UserRepository userRepository;
+    private final com.example.smart_garden.service.SensorDataBuffer sensorDataBuffer;
 
     /** Dev flag: bỏ qua Decision Window để test ngoài giờ tưới (set false trước deploy). */
     @Value("${app.dev.bypass-time-gate:false}")
@@ -77,8 +78,8 @@ public class AiPredictionServiceImpl implements AiPredictionService {
 
     private static final DateTimeFormatter ISO_DATE_TIME = DateTimeFormatter.ISO_DATE_TIME;
 
-    /** Khoảng thời gian lấy AVG sensor data cho AI (phút). */
-    private static final int SENSOR_AGGREGATION_WINDOW_MINUTES = 30;
+    /** Khoảng thời gian lấy AVG sensor data cho AI (phút). 5 phút đủ lọc nhiễu (~30 samples) và vẫn phản ánh thay đổi nhanh. */
+    private static final int SENSOR_AGGREGATION_WINDOW_MINUTES = 5;
 
     // ================== PREDICT ==================
 
@@ -111,16 +112,17 @@ public class AiPredictionServiceImpl implements AiPredictionService {
             throw new AppException(ErrorCode.AI_SERVICE_NOT_ENABLED);
         }
 
-        // 3. Build sensor payload — aggregated (preferred) or single record
+        // 3. Build sensor payload — flush buffer trước để đảm bảo data mới nhất từ MQTT đã vào DB
+        sensorDataBuffer.flush();
         Map<String, Object> sensorPayload;
         if (request.sensorDataId() != null) {
-            // Backward-compat: dùng bản ghi cụ thể nếu truyền vào
+            // Dùng bản ghi cụ thể nếu truyền vào
             SensorData sensorData = sensorDataRepository.findById(request.sensorDataId())
                     .orElseThrow(() -> new AppException(ErrorCode.SENSOR_NOT_FOUND));
             sensorPayload = buildSensorPayload(sensorData);
         } else {
-            // Preferred: tổng hợp AVG 30 phút gần nhất để lọc nhiễu
-            sensorPayload = buildAggregatedSensorPayload(request.deviceId());
+            // TODO: tạm dùng bản ghi mới nhất thay vì AVG cửa sổ để phản ánh ngay thay đổi sensor
+            sensorPayload = fallbackToLatestSensor(request.deviceId());
         }
 
         // 4. Build rich payload
@@ -561,7 +563,8 @@ public class AiPredictionServiceImpl implements AiPredictionService {
      * Fallback: nếu không có dữ liệu trong cửa sổ, lấy bản ghi gần nhất.
      */
     private Map<String, Object> buildAggregatedSensorPayload(Long deviceId) {
-        LocalDateTime now = LocalDateTime.now();
+        // Dùng UTC vì timestamp trong DB được lưu theo ZoneOffset.UTC (xem SensorDataServiceImpl.ingestFromMqtt)
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
         LocalDateTime windowStart = now.minusMinutes(SENSOR_AGGREGATION_WINDOW_MINUTES);
 
         List<Object[]> rows = sensorDataRepository
@@ -608,10 +611,9 @@ public class AiPredictionServiceImpl implements AiPredictionService {
     private Map<String, Object> fallbackToLatestSensor(Long deviceId) {
         SensorData latest = sensorDataRepository.findFirstByDeviceIdOrderByTimestampDesc(deviceId)
                 .orElseThrow(() -> new AppException(ErrorCode.SENSOR_NOT_FOUND));
-        log.warn("No aggregated data in {}min window for device {}, falling back to latest record",
-                SENSOR_AGGREGATION_WINDOW_MINUTES, deviceId);
+        log.debug("Using latest sensor record for device {} at {}", deviceId, latest.getTimestamp());
         Map<String, Object> sensors = buildSensorPayload(latest);
-        sensors.put("source", "fallback_latest");
+        sensors.put("source", "latest_record");
         return sensors;
     }
 

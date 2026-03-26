@@ -49,6 +49,7 @@ const int RAIN_WET  = 900;
 #define PUMP_ON_THRESHOLD  20
 #define PUMP_OFF_THRESHOLD 30
 #define ADC_SAMPLES        31
+#define EMA_ALPHA          0.3f   // Hệ số làm mượt EMA (0=chậm, 1=không lọc)
 
 // =============================================================
 // BUTTON CONFIG
@@ -1054,6 +1055,10 @@ bool mqttConnect() {
 void sensorTask(void *pvParameters) {
   TickType_t lastWakeTime = xTaskGetTickCount();
   unsigned long lastBH1750Retry = 0;
+
+  // EMA state — khởi tạo -1 để detect lần đọc đầu tiên
+  float emaTemp = -1, emaHum = -1, emaLux = -1;
+  float emaSoil1 = -1, emaSoil2 = -1, emaRain = -1;
   
   while(1) {
     // === Tạm dừng khi đang pairing ===
@@ -1098,10 +1103,31 @@ void sensorTask(void *pvParameters) {
       int p2 = toPercent(s2Raw, SOIL2_DRY, SOIL2_WET);
       int rainPct = toPercent(rnRaw, RAIN_DRY, RAIN_WET);
 
+      // === EMA smoothing ===
+      // Lần đầu: khởi tạo bằng giá trị thực (không làm lệch về 0)
+      if (emaTemp  < 0) { emaTemp  = tmp.temperature;       }
+      if (emaHum   < 0) { emaHum   = hum.relative_humidity; }
+      if (emaLux   < 0) { emaLux   = lux;                   }
+      if (emaSoil1 < 0) { emaSoil1 = p1;                    }
+      if (emaSoil2 < 0) { emaSoil2 = p2;                    }
+      if (emaRain  < 0) { emaRain  = rainPct;               }
+
+      emaTemp  = EMA_ALPHA * tmp.temperature       + (1.0f - EMA_ALPHA) * emaTemp;
+      emaHum   = EMA_ALPHA * hum.relative_humidity + (1.0f - EMA_ALPHA) * emaHum;
+      emaLux   = EMA_ALPHA * lux                   + (1.0f - EMA_ALPHA) * emaLux;
+      emaSoil1 = EMA_ALPHA * p1                    + (1.0f - EMA_ALPHA) * emaSoil1;
+      emaSoil2 = EMA_ALPHA * p2                    + (1.0f - EMA_ALPHA) * emaSoil2;
+      emaRain  = EMA_ALPHA * rainPct               + (1.0f - EMA_ALPHA) * emaRain;
+
+      // Làm tròn % về int sau EMA
+      p1      = (int)roundf(emaSoil1);
+      p2      = (int)roundf(emaSoil2);
+      rainPct = (int)roundf(emaRain);
+
       if (xSemaphoreTake(dataMutex, portMAX_DELAY) == pdTRUE) {
-        sharedData.temperature = tmp.temperature;
-        sharedData.humidity = hum.relative_humidity;
-        sharedData.lux = lux;
+        sharedData.temperature = emaTemp;
+        sharedData.humidity    = emaHum;
+        sharedData.lux         = emaLux;
         sharedData.soil1_raw = s1Raw;
         sharedData.soil2_raw = s2Raw;
         sharedData.rain_raw = rnRaw;
@@ -1480,7 +1506,8 @@ void pumpTask(void *pvParameters) {
       }
 
       if (fuzzyState == FP_PULSE_ON) {
-        bool durationReached = (fuzzyTotalWateredMs + (currentTime - fuzzyPulseStart)) >= fuzzyTotalDurationMs;
+        // Dùng wall-clock session time để khớp với đồng hồ đếm ngược trên màn hình LCD
+        bool durationReached = (currentTime - fuzzySessionStart) >= fuzzyTotalDurationMs;
         bool pulseComplete   = (fuzzyPulseOnMs > 0) && ((currentTime - fuzzyPulseStart) >= (unsigned long)fuzzyPulseOnMs);
 
         if (durationReached) {
@@ -1502,9 +1529,12 @@ void pumpTask(void *pvParameters) {
 
       if (fuzzyState == FP_PULSE_OFF) {
         if ((currentTime - fuzzyPulseStart) >= (unsigned long)fuzzyPulseOffMs) {
-          // FIX: dùng biến local `soil` đã đọc qua mutex ở đầu vòng lặp
           if (soil > 85.0f) {
             Serial.printf("[PUMP] AI: soil saturated (%.0f%%) → stop early\n", soil);
+            shouldFinishIrrigation = true;
+          } else if ((currentTime - fuzzySessionStart) >= fuzzyTotalDurationMs) {
+            // Thời gian session đã hết trong khi đang nghỉ (soak) → dừng, không bật pulse mới
+            Serial.printf("[PUMP] AI: duration expired during soak phase → stop\n");
             shouldFinishIrrigation = true;
           } else {
             digitalWrite(RELAY_PIN, RELAY_ON);
@@ -1592,7 +1622,8 @@ void pumpTask(void *pvParameters) {
         }
 
         case FP_PULSE_ON: {
-          bool durationReached = (fuzzyTotalWateredMs + (currentTime - fuzzyPulseStart)) >= fuzzyTotalDurationMs;
+          // Dùng wall-clock session time để duration nhất quán với nhà
+          bool durationReached = (currentTime - fuzzySessionStart) >= fuzzyTotalDurationMs;
           bool pulseComplete   = (fuzzyPulseOnMs > 0) && ((currentTime - fuzzyPulseStart) >= (unsigned long)fuzzyPulseOnMs);
 
           if (durationReached) {
@@ -1614,9 +1645,12 @@ void pumpTask(void *pvParameters) {
 
         case FP_PULSE_OFF: {
           if ((currentTime - fuzzyPulseStart) >= (unsigned long)fuzzyPulseOffMs) {
-            // FIX: dùng biến local `soil` đã đọc qua mutex ở đầu vòng lặp
             if (soil > 85.0f) {
               Serial.printf("[PUMP] Fuzzy: soil saturated (%.0f%%) → stop early\n", soil);
+              shouldFinishIrrigation = true;
+            } else if ((currentTime - fuzzySessionStart) >= fuzzyTotalDurationMs) {
+              // Thời gian session đã hết trong soak phase → dừng
+              Serial.printf("[PUMP] Fuzzy: duration expired during soak → stop\n");
               shouldFinishIrrigation = true;
             } else {
               digitalWrite(RELAY_PIN, RELAY_ON);
